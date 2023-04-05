@@ -1,5 +1,5 @@
 use super::errors::LexicalError;
-use super::tokens::{Position, Token, TokenType};
+use super::tokens::{Token, TokenType};
 use super::utils::*;
 use std::{iter::Peekable, str::Chars};
 

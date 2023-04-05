@@ -1,3 +1,5 @@
+use super::utils::Position;
+
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
     Number(f64),
@@ -42,19 +44,6 @@ pub enum TokenType {
 
     Eof,
     Invalid,
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Position {
-    pub line: usize,
-    pub start: usize,
-    pub end: usize,
-}
-
-impl Position {
-    pub fn new(line: usize, start: usize, end: usize) -> Self {
-        Self { line, start, end }
-    }
 }
 
 #[derive(Debug, PartialEq)]

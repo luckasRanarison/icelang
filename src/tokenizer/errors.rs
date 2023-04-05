@@ -1,4 +1,4 @@
-use super::tokens::Position;
+use super::utils::Position;
 use std::fmt;
 
 #[derive(Debug)]
