@@ -1,5 +1,6 @@
-use crate::tokenizer::tokens::{Position, Token, TokenType};
-use crate::tokenizer::utils::*;
+use super::errors::LexicalError;
+use super::tokens::{Position, Token, TokenType};
+use super::utils::*;
 use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
@@ -18,7 +19,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn tokenize(&mut self) -> Vec<Token> {
+    pub fn tokenize(&mut self) -> Result<Vec<Token>, LexicalError> {
         let mut tokens: Vec<Token> = Vec::new();
 
         while let Some(ch) = self.chars.next() {
@@ -51,10 +52,15 @@ impl<'a> Lexer<'a> {
                 ch if is_quote(ch) => self.create_string_token(ch),
                 ch if is_alphabetic(ch) => self.create_keyword_or_identifer_token(),
                 ch if ch.is_ascii_digit() => self.create_number_token(),
-                _ => Token::new(TokenType::Invalid, String::new(), self.current_pos),
+                _ => {
+                    return Err(LexicalError::UnexpectedCharacter(
+                        self.current_lexeme.clone(),
+                        self.current_pos,
+                    ))
+                }
             };
 
-            tokens.push(token);
+            tokens.push(token?);
 
             self.current_lexeme = String::new();
             self.current_pos.start = self.current_pos.end + 1;
@@ -68,7 +74,7 @@ impl<'a> Lexer<'a> {
         let eof_token = Token::new(TokenType::Eof, String::new(), self.current_pos);
         tokens.push(eof_token);
 
-        tokens
+        Ok(tokens)
     }
 
     fn advance(&mut self) {
@@ -86,7 +92,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn create_symbol_token(&mut self) -> Token {
+    fn create_symbol_token(&mut self) -> Result<Token, LexicalError> {
         if let Some(next_char) = self.chars.peek() {
             if *next_char == '=' {
                 self.current_lexeme += &next_char.to_string();
@@ -114,15 +120,20 @@ impl<'a> Lexer<'a> {
             ">=" => TokenType::GreaterEqual,
             "<" => TokenType::Less,
             "<=" => TokenType::LessEqual,
-            _ => TokenType::Invalid,
+            _ => {
+                return Err(LexicalError::UnexpectedCharacter(
+                    self.current_lexeme.clone(),
+                    self.current_pos,
+                ))
+            }
         };
 
         let token = Token::new(token_type, self.current_lexeme.clone(), self.current_pos);
 
-        token
+        Ok(token)
     }
 
-    fn create_string_token(&mut self, quote_char: char) -> Token {
+    fn create_string_token(&mut self, quote_char: char) -> Result<Token, LexicalError> {
         let mut closed = false;
 
         while let Some(next_char) = self.chars.peek() {
@@ -140,7 +151,7 @@ impl<'a> Lexer<'a> {
         }
 
         if !closed {
-            panic!("Unmatched quote")
+            return Err(LexicalError::MismatchedParentheses(self.current_pos));
         }
 
         let value = self.current_lexeme[1..self.current_lexeme.len() - 1].to_string();
@@ -150,10 +161,10 @@ impl<'a> Lexer<'a> {
             self.current_pos,
         );
 
-        token
+        Ok(token)
     }
 
-    fn create_number_token(&mut self) -> Token {
+    fn create_number_token(&mut self) -> Result<Token, LexicalError> {
         while let Some(next_char) = self.chars.peek() {
             if next_char.is_ascii_digit() || *next_char == '.' {
                 self.current_lexeme += &next_char.to_string();
@@ -170,14 +181,17 @@ impl<'a> Lexer<'a> {
                 self.current_pos,
             ),
             Err(_) => {
-                panic!("Invalid number value")
+                return Err(LexicalError::InvalidFloat(
+                    self.current_lexeme.clone(),
+                    self.current_pos,
+                ))
             }
         };
 
-        token
+        Ok(token)
     }
 
-    fn create_keyword_or_identifer_token(&mut self) -> Token {
+    fn create_keyword_or_identifer_token(&mut self) -> Result<Token, LexicalError> {
         while let Some(ch) = self.chars.peek() {
             if is_alphanumeric(*ch) {
                 self.current_lexeme += &ch.to_string();
@@ -205,7 +219,7 @@ impl<'a> Lexer<'a> {
 
         let token = Token::new(token_type, self.current_lexeme.clone(), self.current_pos);
 
-        token
+        Ok(token)
     }
 }
 
@@ -217,7 +231,7 @@ mod tests {
     fn compare_single_line_tokens() {
         let s = "var s = 'Hello World';";
         let mut lex = Lexer::new(s);
-        let tokens = lex.tokenize();
+        let tokens = lex.tokenize().unwrap();
 
         assert_eq!(
             tokens,
@@ -250,7 +264,7 @@ mod tests {
     return "Hello World";
 }"#;
         let mut lex = Lexer::new(s);
-        let tokens = lex.tokenize();
+        let tokens = lex.tokenize().unwrap();
 
         assert_eq!(
             tokens,
