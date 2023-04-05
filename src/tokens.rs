@@ -23,12 +23,9 @@ pub enum TokenType {
     Minus,
     Asterix,
     Slash,
-    Quote,
-    DoubleQuote,
     Comma,
     Semicolon,
     Dot,
-    Comment,
     LeftParenthese,
     RighParenethese,
     LeftBrace,
@@ -63,11 +60,12 @@ impl Position {
 #[derive(Debug, PartialEq)]
 pub struct Token {
     pub value: TokenType,
+    pub lexeme: String,
     pub pos: Position,
 }
 
 impl Token {
-    pub fn new(value: TokenType, pos: Position) -> Self {
-        Self { value, pos }
+    pub fn new(value: TokenType, lexeme: String, pos: Position) -> Self {
+        Self { value, lexeme, pos }
     }
 }
