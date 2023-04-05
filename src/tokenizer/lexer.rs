@@ -1,4 +1,5 @@
-use crate::tokens::{Position, Token, TokenType};
+use crate::tokenizer::tokens::{Position, Token, TokenType};
+use crate::tokenizer::utils::*;
 use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
@@ -92,9 +93,4 @@ impl<'a> Lexer<'a> {
 
         token
     }
-}
-
-fn is_standard_symbol(ch: char) -> bool {
-    let symbols = "+-*/(){}.,;!<>=";
-    symbols.contains(ch)
 }
