@@ -60,7 +60,11 @@ impl<'a> Lexer<'a> {
             self.current_pos.start = self.current_pos.end + 1;
         }
 
+        if self.current_pos.start != 0 {
+            self.current_pos.start -= 1; // offstet of the last loop
+        }
         self.current_pos.end = self.current_pos.start;
+
         let eof_token = Token::new(TokenType::Eof, String::new(), self.current_pos);
         tokens.push(eof_token);
 
@@ -84,7 +88,7 @@ impl<'a> Lexer<'a> {
 
     fn create_symbol_token(&mut self) -> Token {
         if let Some(next_char) = self.chars.peek() {
-            if is_standard_symbol(*next_char) {
+            if *next_char == '=' {
                 self.current_lexeme += &next_char.to_string();
                 self.advance();
             }
@@ -202,5 +206,98 @@ impl<'a> Lexer<'a> {
         let token = Token::new(token_type, self.current_lexeme.clone(), self.current_pos);
 
         token
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compare_single_line_tokens() {
+        let s = "var s = 'Hello World';";
+        let mut lex = Lexer::new(s);
+        let tokens = lex.tokenize();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new(TokenType::Var, String::from("var"), Position::new(1, 0, 2)),
+                Token::new(
+                    TokenType::Identifier(String::from("s")),
+                    String::from("s"),
+                    Position::new(1, 4, 4)
+                ),
+                Token::new(TokenType::Equal, String::from("="), Position::new(1, 6, 6)),
+                Token::new(
+                    TokenType::String(String::from("Hello World")),
+                    String::from("'Hello World'"),
+                    Position::new(1, 8, 20)
+                ),
+                Token::new(
+                    TokenType::Semicolon,
+                    String::from(";"),
+                    Position::new(1, 21, 21)
+                ),
+                Token::new(TokenType::Eof, String::new(), Position::new(1, 21, 21))
+            ]
+        )
+    }
+
+    #[test]
+    fn compare_multiple_line_tokens() {
+        let s = r#"fun hello() {
+    return "Hello World";
+}"#;
+        let mut lex = Lexer::new(s);
+        let tokens = lex.tokenize();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new(TokenType::Fun, String::from("fun"), Position::new(1, 0, 2)),
+                Token::new(
+                    TokenType::Identifier(String::from("hello")),
+                    String::from("hello"),
+                    Position::new(1, 4, 8)
+                ),
+                Token::new(
+                    TokenType::LeftParenthese,
+                    String::from("("),
+                    Position::new(1, 9, 9)
+                ),
+                Token::new(
+                    TokenType::RighParenethese,
+                    String::from(")"),
+                    Position::new(1, 10, 10)
+                ),
+                Token::new(
+                    TokenType::LeftBrace,
+                    String::from("{"),
+                    Position::new(1, 12, 12)
+                ),
+                Token::new(
+                    TokenType::Return,
+                    String::from("return"),
+                    Position::new(2, 4, 9)
+                ),
+                Token::new(
+                    TokenType::String(String::from("Hello World")),
+                    String::from("\"Hello World\""),
+                    Position::new(2, 11, 23)
+                ),
+                Token::new(
+                    TokenType::Semicolon,
+                    String::from(";"),
+                    Position::new(2, 24, 24)
+                ),
+                Token::new(
+                    TokenType::RightBrace,
+                    String::from("}"),
+                    Position::new(3, 0, 0)
+                ),
+                Token::new(TokenType::Eof, String::new(), Position::new(3, 0, 0)),
+            ]
+        )
     }
 }
