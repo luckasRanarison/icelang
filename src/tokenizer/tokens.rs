@@ -1,6 +1,6 @@
 use super::utils::Position;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     Number(f64),
     String(String),
@@ -57,7 +57,7 @@ pub enum TokenType {
     Eof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub value: TokenType,
     pub lexeme: String,
