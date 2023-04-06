@@ -4,7 +4,8 @@ use std::fmt;
 #[derive(Debug)]
 pub enum LexicalError {
     UnexpectedCharacter(String, Position),
-    MismatchedParentheses(Position),
+    TrailingQuote(char, Position),
+    InvalidEscapeChar(String, Position),
     InvalidFloat(String, Position),
 }
 
@@ -12,22 +13,33 @@ impl fmt::Display for LexicalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
             LexicalError::UnexpectedCharacter(ch, pos) => {
-                write!(
-                    f,
-                    "unexpected character: '{}' at line {}, col {}-{}",
-                    ch, pos.line, pos.start, pos.end
-                )
+                write!(f, "{}", span_report("unexpected character", ch, pos))
             }
-            LexicalError::MismatchedParentheses(pos) => write!(
+            LexicalError::TrailingQuote(ch, pos) => write!(
                 f,
-                "mismatched parentheses at line {}, col {}-{}",
-                pos.line, pos.start, pos.end,
+                "trailing {} at line {}, col {}",
+                ch, pos.line, pos.col_start,
             ),
-            LexicalError::InvalidFloat(num, pos) => write!(
-                f,
-                "invalid number: '{}' at line {}, col {}-{}",
-                num, pos.line, pos.start, pos.end,
-            ),
+            LexicalError::InvalidFloat(num, pos) => {
+                write!(f, "{}", span_report("invalid floating number", num, pos))
+            }
+            LexicalError::InvalidEscapeChar(str, pos) => {
+                write!(f, "{}", span_report("invalid escape character", str, pos))
+            }
         }
+    }
+}
+
+fn span_report(message: &str, str: &String, pos: &Position) -> String {
+    if pos.col_start == pos.col_end {
+        format!(
+            "{} '{}' at line {}, col {}",
+            message, str, pos.line, pos.col_start
+        )
+    } else {
+        format!(
+            "{}: '{}' at line {}, col {}-{}",
+            message, str, pos.line, pos.col_start, pos.col_end
+        )
     }
 }

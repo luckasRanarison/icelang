@@ -23,7 +23,7 @@ impl<'a> Lexer<'a> {
         let mut tokens: Vec<Token> = Vec::new();
 
         while let Some(ch) = self.chars.next() {
-            self.current_pos.end = self.current_pos.start;
+            self.current_pos.col_end = self.current_pos.col_start;
 
             if ch == '-' {
                 if let Some(next_char) = self.chars.peek() {
@@ -35,11 +35,11 @@ impl<'a> Lexer<'a> {
             }
 
             if ch.is_whitespace() {
-                self.current_pos.start = self.current_pos.end + 1;
+                self.current_pos.col_start = self.current_pos.col_end + 1;
 
                 if ch == '\n' {
                     self.current_pos.line += 1;
-                    self.current_pos.start = 0;
+                    self.current_pos.col_start = 0;
                 }
 
                 continue;
@@ -63,13 +63,13 @@ impl<'a> Lexer<'a> {
             tokens.push(token?);
 
             self.current_lexeme = String::new();
-            self.current_pos.start = self.current_pos.end + 1;
+            self.current_pos.col_start = self.current_pos.col_end + 1;
         }
 
-        if self.current_pos.start != 0 {
-            self.current_pos.start -= 1; // offstet of the last loop
+        if self.current_pos.col_start != 0 {
+            self.current_pos.col_start -= 1; // offstet of the last loop
         }
-        self.current_pos.end = self.current_pos.start;
+        self.current_pos.col_end = self.current_pos.col_start;
 
         let eof_token = Token::new(TokenType::Eof, String::new(), self.current_pos);
         tokens.push(eof_token);
@@ -79,14 +79,14 @@ impl<'a> Lexer<'a> {
 
     fn advance(&mut self) {
         self.chars.next();
-        self.current_pos.end += 1;
+        self.current_pos.col_end += 1;
     }
 
     fn skip_comment(&mut self) {
         while let Some(ch) = self.chars.next() {
             if ch == '\n' {
                 self.current_pos.line += 1;
-                self.current_pos.start = 0;
+                self.current_pos.col_start = 0;
                 break;
             }
         }
@@ -137,7 +137,30 @@ impl<'a> Lexer<'a> {
         let mut closed = false;
 
         while let Some(next_char) = self.chars.peek() {
-            if *next_char == '\n' {
+            if *next_char == '\\' {
+                self.advance();
+                if let Some(next_next_char) = self.chars.peek() {
+                    let current_escape_char: String = format!("\\{}", next_next_char);
+                    let escape_char = match *next_next_char {
+                        'n' => "\n",
+                        't' => "\t",
+                        'r' => "\r",
+                        '\'' => "\'",
+                        '\"' => "\"",
+                        '\\' => "\\",
+                        _ => {
+                            return Err(LexicalError::InvalidEscapeChar(
+                                current_escape_char,
+                                self.current_pos,
+                            ))
+                        }
+                    };
+                    self.current_lexeme += escape_char;
+                    self.advance();
+                } else {
+                    break;
+                };
+            } else if *next_char == '\n' {
                 break;
             } else if *next_char == quote_char {
                 closed = true;
@@ -151,7 +174,7 @@ impl<'a> Lexer<'a> {
         }
 
         if !closed {
-            return Err(LexicalError::MismatchedParentheses(self.current_pos));
+            return Err(LexicalError::TrailingQuote(quote_char, self.current_pos));
         }
 
         let value = self.current_lexeme[1..self.current_lexeme.len() - 1].to_string();
