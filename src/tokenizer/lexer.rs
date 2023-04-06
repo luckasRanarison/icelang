@@ -109,6 +109,8 @@ impl<'a> Lexer<'a> {
             ")" => TokenType::RighParenethese,
             "{" => TokenType::LeftBrace,
             "}" => TokenType::RightBrace,
+            "[" => TokenType::LeftBracket,
+            "]" => TokenType::RightBracket,
             "." => TokenType::Dot,
             "," => TokenType::Comma,
             ";" => TokenType::Semicolon,
@@ -225,7 +227,8 @@ impl<'a> Lexer<'a> {
         }
 
         let token_type = match self.current_lexeme.as_str() {
-            "var" => TokenType::Var,
+            "set" => TokenType::Set,
+            "freeze" => TokenType::Freeze,
             "true" => TokenType::True,
             "false" => TokenType::False,
             "null" => TokenType::Null,
@@ -234,9 +237,18 @@ impl<'a> Lexer<'a> {
             "if" => TokenType::If,
             "else" => TokenType::Else,
             "for" => TokenType::For,
+            "to" => TokenType::To,
             "while" => TokenType::While,
-            "fun" => TokenType::Fun,
+            "loop" => TokenType::Loop,
+            "foreach" => TokenType::Foreach,
+            "in" => TokenType::In,
+            "break" => TokenType::Break,
+            "continue" => TokenType::Continue,
+            "function" => TokenType::Function,
             "return" => TokenType::Return,
+            "expose" => TokenType::Expose,
+            "import" => TokenType::Import,
+            "export" => TokenType::Export,
             _ => TokenType::Identifier(self.current_lexeme.clone()),
         };
 
@@ -252,14 +264,14 @@ mod tests {
 
     #[test]
     fn compare_single_line_tokens() {
-        let s = "var s = 'Hello World';";
+        let s = "set s = 'Hello World';";
         let mut lex = Lexer::new(s);
         let tokens = lex.tokenize().unwrap();
 
         assert_eq!(
             tokens,
             vec![
-                Token::new(TokenType::Var, String::from("var"), Position::new(1, 0, 2)),
+                Token::new(TokenType::Set, String::from("set"), Position::new(1, 0, 2)),
                 Token::new(
                     TokenType::Identifier(String::from("s")),
                     String::from("s"),
@@ -283,7 +295,7 @@ mod tests {
 
     #[test]
     fn compare_multiple_line_tokens() {
-        let s = r#"fun hello() {
+        let s = r#"function hello() {
     return "Hello World";
 }"#;
         let mut lex = Lexer::new(s);
@@ -292,26 +304,30 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::new(TokenType::Fun, String::from("fun"), Position::new(1, 0, 2)),
+                Token::new(
+                    TokenType::Function,
+                    String::from("function"),
+                    Position::new(1, 0, 7)
+                ),
                 Token::new(
                     TokenType::Identifier(String::from("hello")),
                     String::from("hello"),
-                    Position::new(1, 4, 8)
+                    Position::new(1, 9, 13)
                 ),
                 Token::new(
                     TokenType::LeftParenthese,
                     String::from("("),
-                    Position::new(1, 9, 9)
+                    Position::new(1, 14, 14)
                 ),
                 Token::new(
                     TokenType::RighParenethese,
                     String::from(")"),
-                    Position::new(1, 10, 10)
+                    Position::new(1, 15, 15)
                 ),
                 Token::new(
                     TokenType::LeftBrace,
                     String::from("{"),
-                    Position::new(1, 12, 12)
+                    Position::new(1, 17, 17)
                 ),
                 Token::new(
                     TokenType::Return,

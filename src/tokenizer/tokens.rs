@@ -8,7 +8,8 @@ pub enum TokenType {
 
     Identifier(String),
 
-    Var,
+    Set,
+    Freeze,
     Null,
     True,
     False,
@@ -17,9 +18,18 @@ pub enum TokenType {
     If,
     Else,
     For,
+    To,
     While,
-    Fun,
+    Loop,
+    Foreach,
+    In,
+    Break,
+    Continue,
+    Function,
     Return,
+    Expose,
+    Import,
+    Export,
 
     Plus,
     Minus,
@@ -32,6 +42,8 @@ pub enum TokenType {
     RighParenethese,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
     Bang,
 
     BangEqual,
@@ -43,7 +55,6 @@ pub enum TokenType {
     LessEqual,
 
     Eof,
-    Invalid,
 }
 
 #[derive(Debug, PartialEq)]
