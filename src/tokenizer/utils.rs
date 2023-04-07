@@ -1,3 +1,5 @@
+use super::tokens::{Token, TokenType};
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Position {
     pub line: usize,
@@ -30,4 +32,10 @@ pub fn is_alphabetic(ch: char) -> bool {
 
 pub fn is_alphanumeric(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_'
+}
+
+pub fn create_eof_token() -> Token {
+    let eof_token = Token::new(TokenType::Eof, String::new(), Position::new(1, 0, 0));
+
+    eof_token
 }

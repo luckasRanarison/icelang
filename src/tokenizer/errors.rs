@@ -12,14 +12,16 @@ pub enum LexicalError {
 impl fmt::Display for LexicalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
+            LexicalError::TrailingQuote(ch, pos) => {
+                write!(
+                    f,
+                    "trailing {} at line {}, col {}",
+                    ch, pos.line, pos.col_start,
+                )
+            }
             LexicalError::UnexpectedCharacter(ch, pos) => {
                 write!(f, "{}", span_report("unexpected character", ch, pos))
             }
-            LexicalError::TrailingQuote(ch, pos) => write!(
-                f,
-                "trailing {} at line {}, col {}",
-                ch, pos.line, pos.col_start,
-            ),
             LexicalError::InvalidFloat(num, pos) => {
                 write!(f, "{}", span_report("invalid floating number", num, pos))
             }
@@ -31,15 +33,10 @@ impl fmt::Display for LexicalError {
 }
 
 fn span_report(message: &str, str: &String, pos: &Position) -> String {
-    if pos.col_start == pos.col_end {
-        format!(
-            "{} '{}' at line {}, col {}",
-            message, str, pos.line, pos.col_start
-        )
-    } else {
-        format!(
-            "{}: '{}' at line {}, col {}-{}",
-            message, str, pos.line, pos.col_start, pos.col_end
-        )
-    }
+    format!("{} '{}' at line {}, col {}", message, str, pos.line, {
+        match pos.col_start == pos.col_end {
+            true => pos.col_start.to_string(),
+            false => format!("{}-{}", pos.col_start, pos.col_end),
+        }
+    })
 }
