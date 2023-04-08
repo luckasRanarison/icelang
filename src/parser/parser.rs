@@ -1,7 +1,7 @@
 use std::{iter::Peekable, slice::Iter};
 
 use super::{
-    ast::{Expression, Statements},
+    ast::{Expression, Statement},
     error::ParsingError,
 };
 use crate::tokenizer::tokens::{Token, TokenType};
@@ -19,8 +19,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Statements>, ParsingError> {
-        let mut nodes: Vec<Statements> = Vec::new();
+    pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
+        let mut nodes: Vec<Statement> = Vec::new();
 
         while let Some(current_token) = self.tokens.next() {
             if current_token.value == TokenType::Eof {
@@ -43,23 +43,19 @@ impl<'a> Parser<'a> {
         self.tokens.next().unwrap()
     }
 
-    // fn advance_epxect(&mut self, token_type: TokenType, error: ParsingError) -> Token {
-    //     todo!()
-    // }
-
-    fn parse_statement(&mut self) -> Result<Statements, ParsingError> {
+    fn parse_statement(&mut self) -> Result<Statement, ParsingError> {
         let statement = match self.current_token.value {
             TokenType::Set => self.parse_variable_declaration()?,
             _ => {
                 let expr = self.parse_expression()?;
-                Statements::ExpressionStatement(expr)
+                Statement::ExpressionStatement(expr)
             }
         };
 
         Ok(statement)
     }
 
-    fn parse_variable_declaration(&mut self) -> Result<Statements, ParsingError> {
+    fn parse_variable_declaration(&mut self) -> Result<Statement, ParsingError> {
         todo!()
     }
 
@@ -73,7 +69,7 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_equality() {
             let operator = self.clone_token();
             self.current_token = self.advance();
-            let right = self.parse_comparaison()?;
+            let right = self.parse_equality()?;
 
             return Ok(Expression::BinaryExpression {
                 left: Box::new(expr),
@@ -91,7 +87,7 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_comparaison() {
             let operator = self.clone_token();
             self.current_token = self.advance();
-            let right = self.parse_term()?;
+            let right = self.parse_comparaison()?;
 
             return Ok(Expression::BinaryExpression {
                 left: Box::new(expr),
@@ -109,7 +105,7 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_plus_min() {
             let operator = self.clone_token();
             self.current_token = self.advance();
-            let right = self.parse_factor()?;
+            let right = self.parse_term()?;
 
             return Ok(Expression::BinaryExpression {
                 left: Box::new(expr),
@@ -127,7 +123,7 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_mutl_div() {
             let operator = self.clone_token();
             self.current_token = self.advance();
-            let right = self.parse_unary()?;
+            let right = self.parse_factor()?;
 
             return Ok(Expression::BinaryExpression {
                 left: Box::new(expr),

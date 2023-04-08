@@ -15,7 +15,7 @@ pub enum Expression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Statements {
+pub enum Statement {
     VariableDeclaration {
         name: String,
         value: Box<Expression>,
