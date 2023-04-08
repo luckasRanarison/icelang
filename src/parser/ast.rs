@@ -13,3 +13,12 @@ pub enum Expression {
         right: Box<Expression>,
     },
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Statements {
+    VariableDeclaration {
+        name: String,
+        value: Box<Expression>,
+    },
+    ExpressionStatement(Expression),
+}
