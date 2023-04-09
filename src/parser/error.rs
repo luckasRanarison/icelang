@@ -4,9 +4,14 @@ use std::fmt;
 #[derive(Debug)]
 pub enum ParsingError {
     UnexpectedToken(Token),
+    UnexpedtedEndOfInput(Token),
     MissingParenthese(Token),
     MissingLeftOperand(Token),
     MissingRightOperand(Token),
+    MissingInitializer(Token),
+    MissingSemicolon(Token),
+    MissingAssignment(Token),
+    ExpectedIdentifier(Token),
 }
 
 impl fmt::Display for ParsingError {
@@ -17,19 +22,35 @@ impl fmt::Display for ParsingError {
                 "unexpected token '{}' at line {} col {}",
                 token.lexeme, token.pos.line, token.pos.col_start,
             ),
+            ParsingError::UnexpedtedEndOfInput(token) => write!(
+                f,
+                "unexpected end of input at line {} col {}",
+                token.pos.line, token.pos.col_end
+            ),
             ParsingError::MissingParenthese(token)
             | ParsingError::MissingLeftOperand(token)
-            | ParsingError::MissingRightOperand(token) => write!(
+            | ParsingError::MissingRightOperand(token)
+            | ParsingError::MissingInitializer(token)
+            | ParsingError::MissingSemicolon(token)
+            | ParsingError::MissingAssignment(token) => write!(
                 f,
                 "missing {} at line {} pos {}",
                 match self {
                     ParsingError::MissingParenthese(_) => "closing ')'",
                     ParsingError::MissingLeftOperand(_) => "left operand",
                     ParsingError::MissingRightOperand(_) => "right operand",
+                    ParsingError::MissingInitializer(_) => "initializer",
+                    ParsingError::MissingSemicolon(_) => "semicolon ';'",
+                    ParsingError::MissingAssignment(_) => "assignment '='",
                     _ => unreachable!(),
                 },
                 token.pos.line,
                 token.pos.col_start,
+            ),
+            ParsingError::ExpectedIdentifier(token) => write!(
+                f,
+                "expected identifier but found '{}' at line {} col {}",
+                token.lexeme, token.pos.line, token.pos.col_start
             ),
         }
     }

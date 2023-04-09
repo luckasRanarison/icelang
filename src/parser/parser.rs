@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
     pub fn new(tokens: &'a Vec<Token>) -> Self {
         Self {
             tokens: tokens.iter().peekable(),
-            current_token: tokens.first().unwrap(),
+            current_token: tokens.first().unwrap(), // assuming existing EOF
         }
     }
 
@@ -39,8 +39,8 @@ impl<'a> Parser<'a> {
         self.current_token.clone()
     }
 
-    fn advance(&mut self) -> &'a Token {
-        self.tokens.next().unwrap()
+    fn advance(&mut self) {
+        self.current_token = self.tokens.next().unwrap();
     }
 
     fn parse_statement(&mut self) -> Result<Statement, ParsingError> {
@@ -56,7 +56,25 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParsingError> {
-        todo!()
+        self.advance();
+        let name = match &self.current_token.value {
+            TokenType::Identifier(value) => value.clone(),
+            _ => return Err(ParsingError::ExpectedIdentifier(self.clone_token())),
+        };
+
+        self.advance();
+        if self.current_token.value != TokenType::Equal {
+            return Err(ParsingError::MissingAssignment(self.clone_token()));
+        }
+
+        self.advance();
+        let value = Box::new(self.parse_expression()?);
+
+        if self.current_token.value != TokenType::Semicolon {
+            return Err(ParsingError::MissingSemicolon(self.clone_token()));
+        }
+
+        Ok(Statement::VariableDeclaration { name, value })
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParsingError> {
@@ -68,7 +86,7 @@ impl<'a> Parser<'a> {
 
         if self.current_token.value.is_equality() {
             let operator = self.clone_token();
-            self.current_token = self.advance();
+            self.advance();
 
             if self.current_token.value == TokenType::Eof {
                 return Err(ParsingError::MissingRightOperand(operator));
@@ -91,7 +109,7 @@ impl<'a> Parser<'a> {
 
         if self.current_token.value.is_comparaison() {
             let operator = self.clone_token();
-            self.current_token = self.advance();
+            self.advance();
 
             if self.current_token.value == TokenType::Eof {
                 return Err(ParsingError::MissingRightOperand(operator));
@@ -114,7 +132,7 @@ impl<'a> Parser<'a> {
 
         if self.current_token.value.is_plus_min() {
             let operator = self.clone_token();
-            self.current_token = self.advance();
+            self.advance();
 
             if self.current_token.value == TokenType::Eof {
                 return Err(ParsingError::MissingRightOperand(operator));
@@ -137,7 +155,7 @@ impl<'a> Parser<'a> {
 
         if self.current_token.value.is_mutl_div() {
             let operator = self.clone_token();
-            self.current_token = self.advance();
+            self.advance();
 
             if self.current_token.value == TokenType::Eof {
                 return Err(ParsingError::MissingRightOperand(operator));
@@ -158,7 +176,7 @@ impl<'a> Parser<'a> {
     fn parse_unary(&mut self) -> Result<Expression, ParsingError> {
         if self.current_token.value.is_unary() {
             let operator = self.clone_token();
-            self.current_token = self.advance();
+            self.advance();
             let right = self.parse_unary()?;
 
             return Ok(Expression::UnaryExpression {
@@ -173,7 +191,7 @@ impl<'a> Parser<'a> {
     fn parse_primary(&mut self) -> Result<Expression, ParsingError> {
         let expr = match self.current_token.value {
             TokenType::LeftParenthese => {
-                self.current_token = self.advance();
+                self.advance();
                 let expr = self.parse_expression()?;
                 let token = self.clone_token();
 
@@ -184,6 +202,10 @@ impl<'a> Parser<'a> {
                 Ok(expr)
             }
             _ => {
+                if self.current_token.value.is_eof() {
+                    return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
+                }
+
                 if self.current_token.value.is_literal() {
                     let token = self.clone_token();
                     Ok(Expression::Literal(token))
@@ -195,7 +217,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        self.current_token = self.advance();
+        self.advance();
 
         expr
     }

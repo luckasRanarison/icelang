@@ -58,11 +58,28 @@ pub enum TokenType {
 }
 
 impl TokenType {
+    pub fn is_eof(&self) -> bool {
+        matches!(self, TokenType::Eof)
+    }
+
     pub fn is_equality(&self) -> bool {
-        match self {
-            TokenType::EqualEqual | TokenType::BangEqual => true,
-            _ => false,
-        }
+        matches!(self, TokenType::EqualEqual | TokenType::BangEqual)
+    }
+
+    pub fn is_plus_min(&self) -> bool {
+        matches!(self, TokenType::Plus | TokenType::Minus)
+    }
+
+    pub fn is_mutl_div(&self) -> bool {
+        matches!(self, TokenType::Asterix | TokenType::Slash)
+    }
+
+    pub fn is_binary_operator(&self) -> bool {
+        self.is_comparaison() || self.is_mutl_div() || self.is_plus_min()
+    }
+
+    pub fn is_unary(&self) -> bool {
+        matches!(self, TokenType::Bang | TokenType::Minus)
     }
 
     pub fn is_comparaison(&self) -> bool {
@@ -71,13 +88,6 @@ impl TokenType {
             | TokenType::GreaterEqual
             | TokenType::Less
             | TokenType::LessEqual => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_unary(&self) -> bool {
-        match self {
-            TokenType::Bang | TokenType::Minus => true,
             _ => false,
         }
     }
@@ -91,24 +101,6 @@ impl TokenType {
             | TokenType::Null => true,
             _ => false,
         }
-    }
-
-    pub fn is_plus_min(&self) -> bool {
-        match self {
-            TokenType::Plus | TokenType::Minus => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_mutl_div(&self) -> bool {
-        match self {
-            TokenType::Asterix | TokenType::Slash => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_binary_operator(&self) -> bool {
-        self.is_comparaison() || self.is_mutl_div() || self.is_plus_min()
     }
 }
 
