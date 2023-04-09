@@ -106,6 +106,10 @@ impl TokenType {
             _ => false,
         }
     }
+
+    pub fn is_binary_operator(&self) -> bool {
+        self.is_comparaison() || self.is_mutl_div() || self.is_plus_min()
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

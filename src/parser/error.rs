@@ -3,24 +3,33 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum ParsingError {
-    NotYetImplemented,
     UnexpectedToken(Token),
     MissingParenthese(Token),
+    MissingLeftOperand(Token),
+    MissingRightOperand(Token),
 }
 
 impl fmt::Display for ParsingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParsingError::NotYetImplemented => write!(f, "not yet impemented"),
             ParsingError::UnexpectedToken(token) => write!(
                 f,
-                "unexpected token '{}' at line {} col:{}",
-                token.lexeme, token.pos.line, token.pos.col_start
+                "unexpected token '{}' at line {} col {}",
+                token.lexeme, token.pos.line, token.pos.col_start,
             ),
-            ParsingError::MissingParenthese(token) => write!(
+            ParsingError::MissingParenthese(token)
+            | ParsingError::MissingLeftOperand(token)
+            | ParsingError::MissingRightOperand(token) => write!(
                 f,
-                "missing closing ')' at line {} pos {}",
-                token.pos.line, token.pos.col_start
+                "missing {} at line {} pos {}",
+                match self {
+                    ParsingError::MissingParenthese(_) => "closing ')'",
+                    ParsingError::MissingLeftOperand(_) => "left operand",
+                    ParsingError::MissingRightOperand(_) => "right operand",
+                    _ => unreachable!(),
+                },
+                token.pos.line,
+                token.pos.col_start,
             ),
         }
     }

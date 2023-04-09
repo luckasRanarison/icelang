@@ -69,6 +69,11 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_equality() {
             let operator = self.clone_token();
             self.current_token = self.advance();
+
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
             let right = self.parse_equality()?;
 
             return Ok(Expression::BinaryExpression {
@@ -87,6 +92,11 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_comparaison() {
             let operator = self.clone_token();
             self.current_token = self.advance();
+
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
             let right = self.parse_comparaison()?;
 
             return Ok(Expression::BinaryExpression {
@@ -105,6 +115,11 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_plus_min() {
             let operator = self.clone_token();
             self.current_token = self.advance();
+
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
             let right = self.parse_term()?;
 
             return Ok(Expression::BinaryExpression {
@@ -123,6 +138,11 @@ impl<'a> Parser<'a> {
         if self.current_token.value.is_mutl_div() {
             let operator = self.clone_token();
             self.current_token = self.advance();
+
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
             let right = self.parse_factor()?;
 
             return Ok(Expression::BinaryExpression {
@@ -167,6 +187,8 @@ impl<'a> Parser<'a> {
                 if self.current_token.value.is_literal() {
                     let token = self.clone_token();
                     Ok(Expression::Literal(token))
+                } else if self.current_token.value.is_binary_operator() {
+                    Err(ParsingError::MissingLeftOperand(self.clone_token()))
                 } else {
                     Err(ParsingError::UnexpectedToken(self.clone_token()))
                 }
