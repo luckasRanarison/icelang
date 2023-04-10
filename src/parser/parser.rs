@@ -46,6 +46,7 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Result<Statement, ParsingError> {
         let statement = match self.current_token.value {
             TokenType::Set => self.parse_variable_declaration()?,
+            TokenType::Identifier(_) => self.parse_assignement()?,
             _ => {
                 let expr = self.parse_expression()?;
                 Statement::ExpressionStatement(expr)
@@ -57,6 +58,7 @@ impl<'a> Parser<'a> {
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParsingError> {
         self.advance();
+        let token = self.clone_token();
         let name = match &self.current_token.value {
             TokenType::Identifier(value) => value.clone(),
             _ => return Err(ParsingError::ExpectedIdentifier(self.clone_token())),
@@ -68,13 +70,53 @@ impl<'a> Parser<'a> {
         }
 
         self.advance();
-        let value = Box::new(self.parse_expression()?);
+        let value = self.parse_expression()?;
 
         if self.current_token.value != TokenType::Semicolon {
             return Err(ParsingError::MissingSemicolon(self.clone_token()));
         }
 
-        Ok(Statement::VariableDeclaration { name, value })
+        self.advance();
+
+        Ok(Statement::VariableDeclaration { token, name, value })
+    }
+
+    fn parse_assignement(&mut self) -> Result<Statement, ParsingError> {
+        if self.tokens.peek().unwrap().value != TokenType::Equal {
+            return Ok(Statement::ExpressionStatement(self.parse_expression()?));
+        }
+
+        let token = self.clone_token();
+        let name = self.current_token.lexeme.clone();
+
+        self.advance();
+        self.advance();
+
+        let value = self.parse_expression()?;
+
+        if self.current_token.value != TokenType::Semicolon {
+            return Err(ParsingError::MissingSemicolon(self.clone_token()));
+        }
+
+        self.advance();
+
+        Ok(Statement::VariableAssignement { token, name, value })
+    }
+
+    fn parse_block(&mut self) -> Result<Vec<Statement>, ParsingError> {
+        let token = self.clone_token();
+        let mut statements: Vec<Statement> = Vec::new();
+        self.advance();
+
+        while self.current_token.value != TokenType::RightBrace {
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingClosingBrace(token));
+            }
+
+            statements.push(self.parse_statement()?);
+        }
+
+        Ok(statements)
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParsingError> {
@@ -190,6 +232,10 @@ impl<'a> Parser<'a> {
 
     fn parse_primary(&mut self) -> Result<Expression, ParsingError> {
         let expr = match self.current_token.value {
+            TokenType::Eof => {
+                return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
+            }
+            TokenType::Identifier(_) => Ok(Expression::VariableExpression(self.clone_token())),
             TokenType::LeftParenthese => {
                 self.advance();
                 let expr = self.parse_expression()?;
@@ -201,18 +247,19 @@ impl<'a> Parser<'a> {
 
                 Ok(expr)
             }
-            _ => {
-                if self.current_token.value.is_eof() {
-                    return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
-                }
+            TokenType::LeftBrace => {
+                let stmt = self.parse_block()?;
 
+                Ok(Expression::BlockExpression(stmt))
+            }
+            _ => {
                 if self.current_token.value.is_literal() {
                     let token = self.clone_token();
                     Ok(Expression::Literal(token))
                 } else if self.current_token.value.is_binary_operator() {
-                    Err(ParsingError::MissingLeftOperand(self.clone_token()))
+                    return Err(ParsingError::MissingLeftOperand(self.clone_token()));
                 } else {
-                    Err(ParsingError::UnexpectedToken(self.clone_token()))
+                    return Err(ParsingError::UnexpectedToken(self.clone_token()));
                 }
             }
         };

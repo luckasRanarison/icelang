@@ -11,6 +11,7 @@ pub enum ParsingError {
     MissingInitializer(Token),
     MissingSemicolon(Token),
     MissingAssignment(Token),
+    MissingClosingBrace(Token),
     ExpectedIdentifier(Token),
 }
 
@@ -32,7 +33,8 @@ impl fmt::Display for ParsingError {
             | ParsingError::MissingRightOperand(token)
             | ParsingError::MissingInitializer(token)
             | ParsingError::MissingSemicolon(token)
-            | ParsingError::MissingAssignment(token) => write!(
+            | ParsingError::MissingAssignment(token)
+            | ParsingError::MissingClosingBrace(token) => write!(
                 f,
                 "missing {} at line {} pos {}",
                 match self {
@@ -42,6 +44,7 @@ impl fmt::Display for ParsingError {
                     ParsingError::MissingInitializer(_) => "initializer",
                     ParsingError::MissingSemicolon(_) => "semicolon ';'",
                     ParsingError::MissingAssignment(_) => "assignment '='",
+                    ParsingError::MissingClosingBrace(_) => "closing brace for '{'",
                     _ => unreachable!(),
                 },
                 token.pos.line,
