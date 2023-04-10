@@ -33,7 +33,7 @@ impl Interpreter {
                     return Err(RuntimeError::UndefinedVariable(token));
                 }
 
-                self.environment.store(name, value.clone());
+                self.environment.assign(name, value.clone());
                 value
             }
             Statement::ExpressionStatement(expr) => self.evaluate_expression(expr)?,
@@ -66,8 +66,7 @@ impl Interpreter {
     }
 
     fn evaluate_block(&mut self, statements: Vec<Statement>) -> Result<Value, RuntimeError> {
-        let prev = self.environment.clone();
-        self.environment = Environment::from(prev.clone());
+        self.environment = Environment::from(self.environment.clone());
 
         if statements.is_empty() {
             return Ok(Value::Null);
@@ -82,7 +81,9 @@ impl Interpreter {
             _ => Value::Null,
         };
 
-        self.environment = prev;
+        if let Some(enclosing) = self.environment.enclosing.as_mut() {
+            self.environment = *enclosing.clone();
+        }
 
         Ok(value)
     }

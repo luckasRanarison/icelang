@@ -30,6 +30,14 @@ impl Environment {
         self.values.insert(name, value);
     }
 
+    pub fn assign(&mut self, name: String, value: Value) {
+        if self.values.contains_key(&name) {
+            self.store(name, value);
+        } else if let Some(enclosing) = &mut self.enclosing {
+            enclosing.assign(name, value);
+        }
+    }
+
     pub fn get(&self, name: String) -> Option<Value> {
         self.values
             .get(&name)
@@ -39,5 +47,6 @@ impl Environment {
 
     pub fn contains(&self, name: &String) -> bool {
         self.values.contains_key(name)
+            || self.enclosing.as_ref().map_or(false, |e| e.contains(name))
     }
 }
