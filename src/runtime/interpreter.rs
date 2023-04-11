@@ -18,7 +18,7 @@ impl Interpreter {
     pub fn evaluate_statement(&mut self, node: Statement) -> Result<Value, RuntimeError> {
         let value = match node {
             Statement::VariableDeclaration { token, name, value } => {
-                if self.environment.contains(&name) {
+                if self.environment.local_contains(&name) {
                     return Err(RuntimeError::RedeclaringVariable(token));
                 }
 
@@ -29,7 +29,7 @@ impl Interpreter {
             Statement::VariableAssignement { token, name, value } => {
                 let value = self.evaluate_expression(value)?;
 
-                if !self.environment.contains(&name) {
+                if !self.environment.global_contains(&name) {
                     return Err(RuntimeError::UndefinedVariable(token));
                 }
 
@@ -167,7 +167,22 @@ impl Interpreter {
             TokenType::LessEqual => Ok(Value::Boolean(lhs <= rhs)),
             TokenType::EqualEqual => Ok(Value::Boolean(lhs == rhs)),
             TokenType::BangEqual => Ok(Value::Boolean(lhs != rhs)),
+            TokenType::And => Ok(Value::Boolean(
+                self.test_truthness(&lhs) && self.test_truthness(&rhs),
+            )),
+            TokenType::Or => Ok(Value::Boolean(
+                self.test_truthness(&lhs) || self.test_truthness(&rhs),
+            )),
             _ => unreachable!(),
+        }
+    }
+
+    fn test_truthness(&self, value: &Value) -> bool {
+        match value {
+            Value::Number(value) => *value != 0.0,
+            Value::Boolean(value) => *value,
+            Value::Null => false,
+            Value::String(value) => value.len() != 0,
         }
     }
 }

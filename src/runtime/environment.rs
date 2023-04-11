@@ -45,8 +45,15 @@ impl Environment {
             .or_else(|| self.enclosing.as_ref().and_then(|e| e.get(name)))
     }
 
-    pub fn contains(&self, name: &String) -> bool {
+    pub fn local_contains(&self, name: &String) -> bool {
         self.values.contains_key(name)
-            || self.enclosing.as_ref().map_or(false, |e| e.contains(name))
+    }
+
+    pub fn global_contains(&self, name: &String) -> bool {
+        self.values.contains_key(name)
+            || self
+                .enclosing
+                .as_ref()
+                .map_or(false, |e| e.global_contains(name))
     }
 }

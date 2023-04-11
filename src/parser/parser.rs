@@ -109,18 +109,76 @@ impl<'a> Parser<'a> {
         self.advance();
 
         while self.current_token.value != TokenType::RightBrace {
-            if self.current_token.value == TokenType::Eof {
-                return Err(ParsingError::MissingClosingBrace(token));
+            match self.current_token.value {
+                TokenType::Eof => return Err(ParsingError::MissingClosingBrace(token)),
+                TokenType::Semicolon => self.advance(),
+                _ => statements.push(self.parse_statement()?),
             }
-
-            statements.push(self.parse_statement()?);
         }
 
         Ok(statements)
     }
 
+    fn parse_group(&mut self) -> Result<Expression, ParsingError> {
+        self.advance();
+        let expr = self.parse_expression()?;
+        let token = self.clone_token();
+
+        if self.current_token.value != TokenType::RighParenethese {
+            return Err(ParsingError::MissingParenthese(token));
+        }
+
+        Ok(expr)
+    }
+
     fn parse_expression(&mut self) -> Result<Expression, ParsingError> {
-        self.parse_equality()
+        Ok(self.parse_or()?)
+    }
+
+    fn parse_or(&mut self) -> Result<Expression, ParsingError> {
+        let expr = self.parse_and()?;
+
+        if self.current_token.value == TokenType::Or {
+            let operator = self.clone_token();
+            self.advance();
+
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
+            let right = self.parse_or()?;
+
+            return Ok(Expression::BinaryExpression {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
+        }
+
+        Ok(expr)
+    }
+
+    fn parse_and(&mut self) -> Result<Expression, ParsingError> {
+        let expr = self.parse_equality()?;
+
+        if self.current_token.value == TokenType::And {
+            let operator = self.clone_token();
+            self.advance();
+
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
+            let right = self.parse_and()?;
+
+            return Ok(Expression::BinaryExpression {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
+        }
+
+        Ok(expr)
     }
 
     fn parse_equality(&mut self) -> Result<Expression, ParsingError> {
@@ -235,23 +293,10 @@ impl<'a> Parser<'a> {
             TokenType::Eof => {
                 return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
             }
+
             TokenType::Identifier(_) => Ok(Expression::VariableExpression(self.clone_token())),
-            TokenType::LeftParenthese => {
-                self.advance();
-                let expr = self.parse_expression()?;
-                let token = self.clone_token();
-
-                if self.current_token.value != TokenType::RighParenethese {
-                    return Err(ParsingError::MissingParenthese(token));
-                }
-
-                Ok(expr)
-            }
-            TokenType::LeftBrace => {
-                let stmt = self.parse_block()?;
-
-                Ok(Expression::BlockExpression(stmt))
-            }
+            TokenType::LeftBrace => Ok(Expression::BlockExpression(self.parse_block()?)),
+            TokenType::LeftParenthese => Ok(self.parse_group()?),
             _ => {
                 if self.current_token.value.is_literal() {
                     let token = self.clone_token();
