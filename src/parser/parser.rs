@@ -319,17 +319,24 @@ impl<'a> Parser<'a> {
                 return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
             }
 
-            TokenType::Identifier(_) => Ok(Expression::VariableExpression(self.clone_token())),
             TokenType::LeftBrace => Ok(Expression::BlockExpression(self.parse_block()?)),
             TokenType::LeftParenthese => Ok(self.parse_group()?),
             TokenType::If => Ok(self.parse_if_expression()?),
+            TokenType::Identifier(_) => {
+                let token = self.clone_token();
+                let next_token_type = &self.peek_token().value;
+                if next_token_type.is_literal() || next_token_type.is_identifier() {
+                    return Err(ParsingError::UnexpectedToken(token));
+                }
+
+                Ok(Expression::VariableExpression(token))
+            }
             _ => {
                 if self.current_token.value.is_literal() {
                     let token = self.clone_token();
                     let next_token_type = &self.peek_token().value;
-
                     if next_token_type.is_literal() || next_token_type.is_identifier() {
-                        return Err(ParsingError::UnexpectedToken(self.peek_token().clone()));
+                        return Err(ParsingError::UnexpectedToken(token));
                     }
 
                     Ok(Expression::Literal(token))
