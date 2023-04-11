@@ -15,7 +15,7 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_statement(&mut self, node: Statement) -> Result<Value, RuntimeError> {
+    pub fn evaluate_statement(&mut self, node: Statement) -> Result<Option<Value>, RuntimeError> {
         let value = match node {
             Statement::VariableDeclaration { token, name, value } => {
                 if self.environment.local_contains(&name) {
@@ -24,19 +24,18 @@ impl Interpreter {
 
                 let value = self.evaluate_expression(value)?;
                 self.environment.store(name, value.clone());
-                value
+                None
             }
             Statement::VariableAssignement { token, name, value } => {
-                let value = self.evaluate_expression(value)?;
-
                 if !self.environment.global_contains(&name) {
                     return Err(RuntimeError::UndefinedVariable(token));
                 }
 
+                let value = self.evaluate_expression(value)?;
                 self.environment.assign(name, value.clone());
-                value
+                None
             }
-            Statement::ExpressionStatement(expr) => self.evaluate_expression(expr)?,
+            Statement::ExpressionStatement(expr) => Some(self.evaluate_expression(expr)?),
         };
 
         Ok(value)

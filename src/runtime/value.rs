@@ -1,4 +1,7 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::{
+    fmt,
+    ops::{Add, Div, Mul, Sub},
+};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Value {
@@ -20,30 +23,29 @@ impl Value {
         value_type.to_string()
     }
 
-    pub fn stringify(&self) -> String {
+    pub fn is_number(&self) -> bool {
+        match self {
+            Value::Number(_) => true,
+            _ => false,
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Number(value) => {
                 let mut s = value.to_string();
 
                 if s.ends_with(".0") {
-                    s.truncate(s.len() - 2)
+                    s.truncate(s.len() - 2);
                 }
 
-                s
+                write!(f, "{s}")
             }
-            Value::String(value) => format!("\"{}\"", value),
-            Value::Boolean(value) => match value {
-                true => String::from("true"),
-                false => String::from("false"),
-            },
-            Value::Null => String::from("null"),
-        }
-    }
-
-    pub fn is_number(&self) -> bool {
-        match self {
-            Value::Number(_) => true,
-            _ => false,
+            Value::String(value) => write!(f, "\"{value}\""),
+            Value::Boolean(value) => write!(f, "{:?}", value),
+            Value::Null => write!(f, "null"),
         }
     }
 }

@@ -82,7 +82,11 @@ fn repl_mode() {
         for node in nodes {
             let value = interpreter.evaluate_statement(node);
             match value {
-                Ok(value) => println!("{}", value.stringify()),
+                Ok(value) => {
+                    if let Some(value) = value {
+                        println!("{}", value);
+                    }
+                }
                 Err(err) => println!("{}", err),
             };
         }

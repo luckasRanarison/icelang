@@ -22,11 +22,12 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
         let mut nodes: Vec<Statement> = Vec::new();
 
-        while let Some(current_token) = self.tokens.next() {
+        while let Some(current_token) = self.tokens.peek() {
             if current_token.value == TokenType::Eof {
                 break;
             }
 
+            self.advance();
             let expr = self.parse_statement();
 
             nodes.push(expr?);
@@ -76,8 +77,6 @@ impl<'a> Parser<'a> {
             return Err(ParsingError::MissingSemicolon(self.clone_token()));
         }
 
-        self.advance();
-
         Ok(Statement::VariableDeclaration { token, name, value })
     }
 
@@ -97,8 +96,6 @@ impl<'a> Parser<'a> {
         if self.current_token.value != TokenType::Semicolon {
             return Err(ParsingError::MissingSemicolon(self.clone_token()));
         }
-
-        self.advance();
 
         Ok(Statement::VariableAssignement { token, name, value })
     }
