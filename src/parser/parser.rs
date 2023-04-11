@@ -20,17 +20,11 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
+        self.advance();
         let mut nodes: Vec<Statement> = Vec::new();
 
-        while let Some(current_token) = self.tokens.peek() {
-            if current_token.value == TokenType::Eof {
-                break;
-            }
-
-            self.advance();
-            let expr = self.parse_statement();
-
-            nodes.push(expr?);
+        while self.current_token.value != TokenType::Eof {
+            nodes.push(self.parse_statement()?);
         }
 
         Ok(nodes)
@@ -42,6 +36,10 @@ impl<'a> Parser<'a> {
 
     fn advance(&mut self) {
         self.current_token = self.tokens.next().unwrap();
+    }
+
+    fn peek_token(&mut self) -> &Token {
+        self.tokens.peek().unwrap()
     }
 
     fn parse_statement(&mut self) -> Result<Statement, ParsingError> {
@@ -76,6 +74,7 @@ impl<'a> Parser<'a> {
         if self.current_token.value != TokenType::Semicolon {
             return Err(ParsingError::MissingSemicolon(self.clone_token()));
         }
+        self.advance();
 
         Ok(Statement::VariableDeclaration { token, name, value })
     }
@@ -96,6 +95,7 @@ impl<'a> Parser<'a> {
         if self.current_token.value != TokenType::Semicolon {
             return Err(ParsingError::MissingSemicolon(self.clone_token()));
         }
+        self.advance();
 
         Ok(Statement::VariableAssignement { token, name, value })
     }
@@ -108,12 +108,40 @@ impl<'a> Parser<'a> {
         while self.current_token.value != TokenType::RightBrace {
             match self.current_token.value {
                 TokenType::Eof => return Err(ParsingError::MissingClosingBrace(token)),
-                TokenType::Semicolon => self.advance(),
                 _ => statements.push(self.parse_statement()?),
             }
         }
 
         Ok(statements)
+    }
+
+    fn parse_if_expression(&mut self) -> Result<Expression, ParsingError> {
+        self.advance();
+        let condition = Box::new(self.parse_expression()?);
+
+        if self.current_token.value != TokenType::LeftBrace {
+            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+        }
+
+        let true_branch = Box::new(Expression::BlockExpression(self.parse_block()?));
+        let else_branch = if self.peek_token().value == TokenType::Else {
+            self.advance();
+            if self.peek_token().value != TokenType::LeftBrace {
+                return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            }
+            self.advance();
+
+            Some(Box::new(Expression::BlockExpression(self.parse_block()?)))
+        } else {
+            None
+        };
+        let if_expr = Expression::IfExpression {
+            condition,
+            true_branch,
+            else_branch,
+        };
+
+        Ok(if_expr)
     }
 
     fn parse_group(&mut self) -> Result<Expression, ParsingError> {
@@ -294,9 +322,16 @@ impl<'a> Parser<'a> {
             TokenType::Identifier(_) => Ok(Expression::VariableExpression(self.clone_token())),
             TokenType::LeftBrace => Ok(Expression::BlockExpression(self.parse_block()?)),
             TokenType::LeftParenthese => Ok(self.parse_group()?),
+            TokenType::If => Ok(self.parse_if_expression()?),
             _ => {
                 if self.current_token.value.is_literal() {
                     let token = self.clone_token();
+                    let next_token_type = &self.peek_token().value;
+
+                    if next_token_type.is_literal() || next_token_type.is_identifier() {
+                        return Err(ParsingError::UnexpectedToken(self.peek_token().clone()));
+                    }
+
                     Ok(Expression::Literal(token))
                 } else if self.current_token.value.is_binary_operator() {
                     return Err(ParsingError::MissingLeftOperand(self.clone_token()));
@@ -347,9 +382,27 @@ mod test {
             {
                 set x = 10;
                 set y = 5;
-                x + y;  
+                x + y  
             }";
         let expected = "{ set x = 10; set y = 5; (x + y); }";
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let input = "
+            if (3 > 4) {
+                if (true) {
+                    'return this'
+                }
+            } else {
+                'unreachable'
+            }      
+        ";
+        let expected = "if ((3 > 4)) { if (true) { 'return this'; }; } else { 'unreachable'; }";
         let tokens = Lexer::new(input).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();

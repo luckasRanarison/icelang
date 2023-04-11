@@ -13,6 +13,7 @@ pub enum ParsingError {
     MissingAssignment(Token),
     MissingClosingBrace(Token),
     ExpectedIdentifier(Token),
+    ExpectedLeftBrace(Token),
 }
 
 impl fmt::Display for ParsingError {
@@ -53,6 +54,11 @@ impl fmt::Display for ParsingError {
             ParsingError::ExpectedIdentifier(token) => write!(
                 f,
                 "expected identifier but found '{}' at line {} col {}",
+                token.lexeme, token.pos.line, token.pos.col_start
+            ),
+            ParsingError::ExpectedLeftBrace(token) => write!(
+                f,
+                "expected left brace '{{' but found '{}' at line {} col {}",
                 token.lexeme, token.pos.line, token.pos.col_start
             ),
         }

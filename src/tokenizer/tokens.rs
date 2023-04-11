@@ -82,6 +82,10 @@ impl TokenType {
         matches!(self, TokenType::Bang | TokenType::Minus)
     }
 
+    pub fn is_identifier(&self) -> bool {
+        matches!(self, TokenType::Identifier(_))
+    }
+
     pub fn is_comparaison(&self) -> bool {
         match self {
             TokenType::Greater

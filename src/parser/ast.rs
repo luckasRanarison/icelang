@@ -14,6 +14,11 @@ pub enum Expression {
         operator: Token,
         right: Box<Expression>,
     },
+    IfExpression {
+        condition: Box<Expression>,
+        true_branch: Box<Expression>,
+        else_branch: Option<Box<Expression>>,
+    },
     BlockExpression(Vec<Statement>),
 }
 
@@ -38,6 +43,18 @@ impl fmt::Display for Expression {
                 }
 
                 write!(f, "{{{} }}", s)
+            }
+            Expression::IfExpression {
+                condition,
+                true_branch,
+                else_branch,
+            } => {
+                let mut else_str = String::new();
+                if let Some(else_branch) = else_branch {
+                    else_str.push_str(&format!(" else {}", *else_branch))
+                }
+
+                write!(f, "if ({}) {}{}", condition, true_branch, else_str)
             }
         }
     }

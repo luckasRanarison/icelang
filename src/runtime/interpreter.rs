@@ -4,6 +4,7 @@ use crate::{
     tokenizer::tokens::{Token, TokenType},
 };
 
+#[derive(Debug)]
 pub struct Interpreter {
     environment: Environment,
 }
@@ -54,6 +55,11 @@ impl Interpreter {
                 right,
             } => Ok(self.evaluate_binary(*left, operator, *right)?),
             Expression::BlockExpression(statements) => self.evaluate_block(statements),
+            Expression::IfExpression {
+                condition,
+                true_branch,
+                else_branch,
+            } => Ok(self.evaluate_if_expression(condition, true_branch, else_branch)?),
         }
     }
 
@@ -174,6 +180,23 @@ impl Interpreter {
             )),
             _ => unreachable!(),
         }
+    }
+
+    fn evaluate_if_expression(
+        &mut self,
+        condition: Box<Expression>,
+        true_branch: Box<Expression>,
+        else_branch: Option<Box<Expression>>,
+    ) -> Result<Value, RuntimeError> {
+        let condition = self.evaluate_expression(*condition)?;
+
+        if self.test_truthness(&condition) {
+            return self.evaluate_expression(*true_branch);
+        } else if let Some(else_branch) = else_branch {
+            return self.evaluate_expression(*else_branch);
+        }
+
+        Ok(Value::Null)
     }
 
     fn test_truthness(&self, value: &Value) -> bool {
