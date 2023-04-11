@@ -1,13 +1,9 @@
-use std::{env, fs::read_to_string, io, process, vec};
+use std::{env, fs::read_to_string, io, process};
 
 use icelang::{
-    parser::parser::Parser,
-    runtime::{interpreter::Interpreter, value::Value},
-    tokenizer::{
-        lexer::Lexer,
-        tokens::{Token, TokenType},
-        utils::Position,
-    },
+    parser::{error::ParsingError, parser::Parser},
+    runtime::interpreter::Interpreter,
+    tokenizer::lexer::Lexer,
 };
 
 fn main() {
@@ -21,51 +17,71 @@ fn main() {
 }
 
 fn repl_mode() {
-    let mut interpreter = Interpreter::new();
     println!("Welcome to icelang REPL mode!");
+    let mut interpreter = Interpreter::new();
+    let mut input_queue = String::new();
 
     loop {
-        print!("> ");
+        match input_queue.is_empty() {
+            true => print!("> "),
+            false => print!(".. "),
+        }
+
         io::Write::flush(&mut io::stdout()).expect("Internal error: output error");
-
-        let mut input = String::new();
+        let mut current_input = String::new();
         io::stdin()
-            .read_line(&mut input)
+            .read_line(&mut current_input)
             .expect("Internal error: failed to read line");
-        input = input.trim().to_string();
+        current_input = current_input.trim().to_string();
 
-        if input == "exit()" {
+        if current_input == "exit()" {
             println!("Bye!");
             process::exit(0);
         }
 
-        let mut lexer = Lexer::new(&input);
-        let tokens = lexer.tokenize().unwrap_or_else(|err| {
-            println!("Parsing error: {}", err);
-            vec![Token::new(
-                TokenType::Eof,
-                String::new(),
-                Position::new(1, 0, 0),
-            )]
-        });
+        input_queue.push_str(&current_input);
+
+        let mut lexer = Lexer::new(&input_queue);
+        let tokens = lexer.tokenize();
+        let tokens = match tokens {
+            Ok(value) => value,
+            Err(err) => {
+                input_queue.clear();
+                println!("Parsing error: {}", err);
+                continue;
+            }
+        };
         let mut parser = Parser::new(&tokens);
-        let nodes = parser.parse().unwrap_or_else(|err| {
-            println!("Parsing error: {}", err);
-            vec![]
-        });
+        let nodes = parser.parse();
+        let nodes = match nodes {
+            Ok(value) => {
+                input_queue.clear();
+                value
+            }
+            Err(err) => match err {
+                ParsingError::MissingParenthese(_)
+                | ParsingError::MissingClosingBrace(_)
+                | ParsingError::UnexpedtedEndOfInput(_) => {
+                    continue;
+                }
+                _ => {
+                    input_queue.clear();
+                    println!("Parsing error: {}", err);
+                    continue;
+                }
+            },
+        };
 
         if nodes.is_empty() {
             println!("null");
-            continue;
         }
 
         for node in nodes {
-            let value = interpreter.evaluate_statement(node).unwrap_or_else(|err| {
-                println!("{}", err);
-                Value::Null
-            });
-
-            println!("{}", value.stringify());
+            let value = interpreter.evaluate_statement(node);
+            match value {
+                Ok(value) => println!("{}", value.stringify()),
+                Err(err) => println!("{}", err),
+            };
         }
     }
 }
