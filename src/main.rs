@@ -24,7 +24,10 @@ fn repl_mode() {
     loop {
         match input_queue.is_empty() {
             true => print!("> "),
-            false => print!(".. "),
+            false => {
+                input_queue.push('\n');
+                print!(".. ")
+            }
         }
 
         io::Write::flush(&mut io::stdout()).expect("Internal error: output error");
@@ -59,7 +62,7 @@ fn repl_mode() {
                 value
             }
             Err(err) => match err {
-                ParsingError::MissingParenthese(_)
+                ParsingError::MissingParenthesis(_)
                 | ParsingError::MissingClosingBrace(_)
                 | ParsingError::UnexpedtedEndOfInput(_) => {
                     continue;

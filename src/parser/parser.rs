@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
         let token = self.clone_token();
 
         if self.current_token.value != TokenType::RighParenethese {
-            return Err(ParsingError::MissingParenthese(token));
+            return Err(ParsingError::MissingParenthesis(token));
         }
 
         Ok(expr)

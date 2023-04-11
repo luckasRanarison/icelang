@@ -14,7 +14,7 @@ impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
             chars: source.chars().peekable(),
-            current_pos: Position::new(1, 0, 0),
+            current_pos: Position::new(1, 1, 1),
             current_lexeme: String::new(),
         }
     }
@@ -39,7 +39,7 @@ impl<'a> Lexer<'a> {
 
                 if ch == '\n' {
                     self.current_pos.line += 1;
-                    self.current_pos.col_start = 0;
+                    self.current_pos.col_start = 1;
                 }
 
                 continue;
@@ -66,7 +66,7 @@ impl<'a> Lexer<'a> {
             self.current_pos.col_start = self.current_pos.col_end + 1;
         }
 
-        if self.current_pos.col_start != 0 {
+        if self.current_pos.col_start != 1 {
             self.current_pos.col_start -= 1; // offstet of the last loop
         }
         self.current_pos.col_end = self.current_pos.col_start;
@@ -86,7 +86,7 @@ impl<'a> Lexer<'a> {
         while let Some(ch) = self.chars.next() {
             if ch == '\n' {
                 self.current_pos.line += 1;
-                self.current_pos.col_start = 0;
+                self.current_pos.col_start = 1;
                 break;
             }
         }
@@ -271,24 +271,24 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::new(TokenType::Set, String::from("set"), Position::new(1, 0, 2)),
+                Token::new(TokenType::Set, String::from("set"), Position::new(1, 1, 3)),
                 Token::new(
                     TokenType::Identifier(String::from("s")),
                     String::from("s"),
-                    Position::new(1, 4, 4)
+                    Position::new(1, 5, 5)
                 ),
-                Token::new(TokenType::Equal, String::from("="), Position::new(1, 6, 6)),
+                Token::new(TokenType::Equal, String::from("="), Position::new(1, 7, 7)),
                 Token::new(
                     TokenType::String(String::from("Hello World")),
                     String::from("'Hello World'"),
-                    Position::new(1, 8, 20)
+                    Position::new(1, 9, 21)
                 ),
                 Token::new(
                     TokenType::Semicolon,
                     String::from(";"),
-                    Position::new(1, 21, 21)
+                    Position::new(1, 22, 22)
                 ),
-                Token::new(TokenType::Eof, String::new(), Position::new(1, 21, 21))
+                Token::new(TokenType::Eof, String::new(), Position::new(1, 22, 22))
             ]
         )
     }
@@ -307,49 +307,49 @@ mod tests {
                 Token::new(
                     TokenType::Function,
                     String::from("function"),
-                    Position::new(1, 0, 7)
+                    Position::new(1, 1, 8)
                 ),
                 Token::new(
                     TokenType::Identifier(String::from("hello")),
                     String::from("hello"),
-                    Position::new(1, 9, 13)
+                    Position::new(1, 10, 14)
                 ),
                 Token::new(
                     TokenType::LeftParenthese,
                     String::from("("),
-                    Position::new(1, 14, 14)
+                    Position::new(1, 15, 15)
                 ),
                 Token::new(
                     TokenType::RighParenethese,
                     String::from(")"),
-                    Position::new(1, 15, 15)
+                    Position::new(1, 16, 16)
                 ),
                 Token::new(
                     TokenType::LeftBrace,
                     String::from("{"),
-                    Position::new(1, 17, 17)
+                    Position::new(1, 18, 18)
                 ),
                 Token::new(
                     TokenType::Return,
                     String::from("return"),
-                    Position::new(2, 4, 9)
+                    Position::new(2, 5, 10)
                 ),
                 Token::new(
                     TokenType::String(String::from("Hello World")),
                     String::from("\"Hello World\""),
-                    Position::new(2, 11, 23)
+                    Position::new(2, 12, 24)
                 ),
                 Token::new(
                     TokenType::Semicolon,
                     String::from(";"),
-                    Position::new(2, 24, 24)
+                    Position::new(2, 25, 25)
                 ),
                 Token::new(
                     TokenType::RightBrace,
                     String::from("}"),
-                    Position::new(3, 0, 0)
+                    Position::new(3, 1, 1)
                 ),
-                Token::new(TokenType::Eof, String::new(), Position::new(3, 0, 0)),
+                Token::new(TokenType::Eof, String::new(), Position::new(3, 1, 1)),
             ]
         )
     }

@@ -5,7 +5,7 @@ use std::fmt;
 pub enum ParsingError {
     UnexpectedToken(Token),
     UnexpedtedEndOfInput(Token),
-    MissingParenthese(Token),
+    MissingParenthesis(Token),
     MissingLeftOperand(Token),
     MissingRightOperand(Token),
     MissingInitializer(Token),
@@ -28,7 +28,7 @@ impl fmt::Display for ParsingError {
                 "unexpected end of input at line {} col {}",
                 token.pos.line, token.pos.col_end
             ),
-            ParsingError::MissingParenthese(token)
+            ParsingError::MissingParenthesis(token)
             | ParsingError::MissingLeftOperand(token)
             | ParsingError::MissingRightOperand(token)
             | ParsingError::MissingInitializer(token)
@@ -36,9 +36,9 @@ impl fmt::Display for ParsingError {
             | ParsingError::MissingAssignment(token)
             | ParsingError::MissingClosingBrace(token) => write!(
                 f,
-                "missing {} at line {} pos {}",
+                "missing {} at line {} col {}",
                 match self {
-                    ParsingError::MissingParenthese(_) => "closing ')'",
+                    ParsingError::MissingParenthesis(_) => "closing ')'",
                     ParsingError::MissingLeftOperand(_) => "left operand",
                     ParsingError::MissingRightOperand(_) => "right operand",
                     ParsingError::MissingInitializer(_) => "initializer",
