@@ -311,3 +311,48 @@ impl<'a> Parser<'a> {
         expr
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::Parser;
+    use crate::tokenizer::lexer::Lexer;
+
+    #[test]
+    fn test_precedence() {
+        let expr = "2 * 3 + 5 / (2 + 2)";
+        let exptected = "((2 * 3) + (5 / (2 + 2)))";
+        let tokens = Lexer::new(expr).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), exptected);
+
+        let expr = "true or false and false";
+        let exptected = "(true or (false and false))";
+        let tokens = Lexer::new(expr).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), exptected);
+
+        let expr = "(2 + 3 * 5) / (2 + 2) != 4 and true or false";
+        let exptected = "(((((2 + (3 * 5)) / (2 + 2)) != 4) and true) or false)";
+        let tokens = Lexer::new(expr).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), exptected);
+    }
+
+    #[test]
+    fn test_block() {
+        let input = "
+            {
+                set x = 10;
+                set y = 5;
+                x + y;  
+            }";
+        let expected = "{ set x = 10; set y = 5; (x + y); }";
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+}
