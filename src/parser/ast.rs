@@ -19,7 +19,10 @@ pub enum Expression {
         true_branch: Box<Expression>,
         else_branch: Option<Box<Expression>>,
     },
-    BlockExpression(Vec<Statement>),
+    BlockExpression {
+        statements: Vec<Statement>,
+        return_expr: Option<Box<Expression>>,
+    },
 }
 
 impl fmt::Display for Expression {
@@ -35,11 +38,18 @@ impl fmt::Display for Expression {
                 right,
             } => write!(f, "({} {} {})", *left, operator.lexeme, *right),
             Expression::VariableExpression(token) => write!(f, "{}", token.lexeme),
-            Expression::BlockExpression(statements) => {
+            Expression::BlockExpression {
+                statements,
+                return_expr,
+            } => {
                 let mut s = String::new();
 
                 for statement in statements {
                     s.push_str(&format!(" {};", *statement));
+                }
+
+                if let Some(return_expr) = return_expr {
+                    s.push_str(&format!(" {}", *return_expr));
                 }
 
                 write!(f, "{{{} }}", s)

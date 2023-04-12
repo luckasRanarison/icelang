@@ -54,7 +54,10 @@ impl Interpreter {
                 operator,
                 right,
             } => Ok(self.evaluate_binary(*left, operator, *right)?),
-            Expression::BlockExpression(statements) => self.evaluate_block(statements),
+            Expression::BlockExpression {
+                statements,
+                return_expr,
+            } => Ok(self.evaluate_block(statements, return_expr)?),
             Expression::IfExpression {
                 condition,
                 true_branch,
@@ -70,20 +73,20 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_block(&mut self, statements: Vec<Statement>) -> Result<Value, RuntimeError> {
+    fn evaluate_block(
+        &mut self,
+        statements: Vec<Statement>,
+        return_expr: Option<Box<Expression>>,
+    ) -> Result<Value, RuntimeError> {
         self.environment = Environment::from(self.environment.clone());
-
-        if statements.is_empty() {
-            return Ok(Value::Null);
-        }
 
         for statement in &statements {
             self.evaluate_statement(statement.clone())?;
         }
 
-        let value = match statements.last().unwrap() {
-            Statement::ExpressionStatement(expr) => self.evaluate_expression(expr.to_owned())?,
-            _ => Value::Null,
+        let value = match return_expr {
+            Some(expr) => self.evaluate_expression(*expr)?,
+            None => Value::Null,
         };
 
         if let Some(enclosing) = self.environment.enclosing.as_mut() {

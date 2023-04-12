@@ -9,6 +9,7 @@ use crate::tokenizer::tokens::{Token, TokenType};
 pub struct Parser<'a> {
     pub tokens: Peekable<Iter<'a, Token>>,
     pub current_token: &'a Token,
+    pub is_parsing_block: bool, // flag to keep track of unexplicit returns
 }
 
 impl<'a> Parser<'a> {
@@ -16,6 +17,7 @@ impl<'a> Parser<'a> {
         Self {
             tokens: tokens.iter().peekable(),
             current_token: tokens.first().unwrap(), // assuming existing EOF
+            is_parsing_block: false,
         }
     }
 
@@ -48,6 +50,11 @@ impl<'a> Parser<'a> {
             TokenType::Identifier(_) => self.parse_assignement()?,
             _ => {
                 let expr = self.parse_expression()?;
+
+                if !self.is_parsing_block && self.current_token.value == TokenType::Semicolon {
+                    self.advance();
+                }
+
                 Statement::ExpressionStatement(expr)
             }
         };
@@ -81,7 +88,13 @@ impl<'a> Parser<'a> {
 
     fn parse_assignement(&mut self) -> Result<Statement, ParsingError> {
         if self.tokens.peek().unwrap().value != TokenType::Equal {
-            return Ok(Statement::ExpressionStatement(self.parse_expression()?));
+            let expr = self.parse_expression()?;
+
+            if !self.is_parsing_block && self.current_token.value == TokenType::Semicolon {
+                self.advance();
+            }
+
+            return Ok(Statement::ExpressionStatement(expr));
         }
 
         let token = self.clone_token();
@@ -100,19 +113,39 @@ impl<'a> Parser<'a> {
         Ok(Statement::VariableAssignement { token, name, value })
     }
 
-    fn parse_block(&mut self) -> Result<Vec<Statement>, ParsingError> {
+    fn parse_block(&mut self) -> Result<Expression, ParsingError> {
+        self.is_parsing_block = true;
         let token = self.clone_token();
         let mut statements: Vec<Statement> = Vec::new();
+        let mut return_expr = None;
         self.advance();
 
         while self.current_token.value != TokenType::RightBrace {
             match self.current_token.value {
                 TokenType::Eof => return Err(ParsingError::MissingClosingBrace(token)),
-                _ => statements.push(self.parse_statement()?),
+                _ => {
+                    let statement = self.parse_statement()?;
+
+                    if let Statement::ExpressionStatement(expr) = statement.clone() {
+                        if self.current_token.value == TokenType::Semicolon {
+                            self.advance();
+                            statements.push(statement);
+                        } else {
+                            return_expr = Some(Box::new(expr));
+                        }
+                    } else {
+                        statements.push(statement)
+                    }
+                }
             }
         }
+        self.is_parsing_block = false;
+        let block = Expression::BlockExpression {
+            statements,
+            return_expr,
+        };
 
-        Ok(statements)
+        Ok(block)
     }
 
     fn parse_if_expression(&mut self) -> Result<Expression, ParsingError> {
@@ -123,7 +156,7 @@ impl<'a> Parser<'a> {
             return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
         }
 
-        let true_branch = Box::new(Expression::BlockExpression(self.parse_block()?));
+        let true_branch = Box::new(self.parse_block()?);
         let else_branch = if self.peek_token().value == TokenType::Else {
             self.advance();
             if self.peek_token().value != TokenType::LeftBrace {
@@ -131,7 +164,7 @@ impl<'a> Parser<'a> {
             }
             self.advance();
 
-            Some(Box::new(Expression::BlockExpression(self.parse_block()?)))
+            Some(Box::new(self.parse_block()?))
         } else {
             None
         };
@@ -319,7 +352,7 @@ impl<'a> Parser<'a> {
                 return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
             }
 
-            TokenType::LeftBrace => Ok(Expression::BlockExpression(self.parse_block()?)),
+            TokenType::LeftBrace => Ok(self.parse_block()?),
             TokenType::LeftParenthese => Ok(self.parse_group()?),
             TokenType::If => Ok(self.parse_if_expression()?),
             TokenType::Identifier(_) => {
@@ -391,7 +424,7 @@ mod test {
                 set y = 5;
                 x + y  
             }";
-        let expected = "{ set x = 10; set y = 5; (x + y); }";
+        let expected = "{ set x = 10; set y = 5; (x + y) }";
         let tokens = Lexer::new(input).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();
@@ -403,13 +436,14 @@ mod test {
         let input = "
             if (3 > 4) {
                 if (true) {
+                    'don\\'t return this';
                     'return this'
                 }
             } else {
                 'unreachable'
             }      
         ";
-        let expected = "if ((3 > 4)) { if (true) { 'return this'; }; } else { 'unreachable'; }";
+        let expected = "if ((3 > 4)) { if (true) { 'don't return this'; 'return this' } } else { 'unreachable' }";
         let tokens = Lexer::new(input).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();
