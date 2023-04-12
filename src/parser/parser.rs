@@ -37,7 +37,9 @@ impl<'a> Parser<'a> {
     }
 
     fn advance(&mut self) {
-        self.current_token = self.tokens.next().unwrap();
+        if self.current_token.value != TokenType::Eof {
+            self.current_token = self.tokens.next().unwrap();
+        }
     }
 
     fn peek_token(&mut self) -> &Token {
@@ -159,12 +161,19 @@ impl<'a> Parser<'a> {
         let true_branch = Box::new(self.parse_block()?);
         let else_branch = if self.peek_token().value == TokenType::Else {
             self.advance();
-            if self.peek_token().value != TokenType::LeftBrace {
-                return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            match self.peek_token().value {
+                TokenType::If => {
+                    self.advance();
+                    Some(Box::new(self.parse_expression()?))
+                }
+                _ => {
+                    self.advance();
+                    if self.current_token.value != TokenType::LeftBrace {
+                        return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+                    }
+                    Some(Box::new(self.parse_block()?))
+                }
             }
-            self.advance();
-
-            Some(Box::new(self.parse_block()?))
         } else {
             None
         };
