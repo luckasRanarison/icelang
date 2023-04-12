@@ -37,6 +37,10 @@ impl Interpreter {
                 None
             }
             Statement::ExpressionStatement(expr) => Some(self.evaluate_expression(expr)?),
+            Statement::WhileStatement { condition, block } => {
+                self.evaluate_while_statement(*condition, *block)?;
+                None
+            }
         };
 
         Ok(value)
@@ -200,6 +204,21 @@ impl Interpreter {
         }
 
         Ok(Value::Null)
+    }
+
+    fn evaluate_while_statement(
+        &mut self,
+        condition: Expression,
+        block: Expression,
+    ) -> Result<Value, RuntimeError> {
+        loop {
+            let condition = self.evaluate_expression(condition.clone())?;
+            if !self.test_truthness(&condition) {
+                return Ok(Value::Null);
+            }
+
+            self.evaluate_expression(block.clone())?;
+        }
     }
 
     fn test_truthness(&self, value: &Value) -> bool {

@@ -50,6 +50,7 @@ impl<'a> Parser<'a> {
         let statement = match self.current_token.value {
             TokenType::Set => self.parse_variable_declaration()?,
             TokenType::Identifier(_) => self.parse_assignement()?,
+            TokenType::While => self.parse_while()?,
             _ => {
                 let expr = self.parse_expression()?;
 
@@ -184,6 +185,20 @@ impl<'a> Parser<'a> {
         };
 
         Ok(if_expr)
+    }
+
+    fn parse_while(&mut self) -> Result<Statement, ParsingError> {
+        self.advance();
+        let condition = Box::new(self.parse_expression()?);
+
+        if self.current_token.value != TokenType::LeftBrace {
+            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+        }
+        let block = Box::new(self.parse_block()?);
+        let while_expr = Statement::WhileStatement { condition, block };
+        self.advance();
+
+        Ok(while_expr)
     }
 
     fn parse_group(&mut self) -> Result<Expression, ParsingError> {

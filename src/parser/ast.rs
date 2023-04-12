@@ -83,6 +83,10 @@ pub enum Statement {
         value: Expression,
     },
     ExpressionStatement(Expression),
+    WhileStatement {
+        condition: Box<Expression>,
+        block: Box<Expression>,
+    },
 }
 
 impl fmt::Display for Statement {
@@ -99,6 +103,9 @@ impl fmt::Display for Statement {
                 value,
             } => write!(f, "{} = {}", name, *value),
             Statement::ExpressionStatement(expr) => write!(f, "{expr}"),
+            Statement::WhileStatement { condition, block } => {
+                write!(f, "while ({}) {}", condition, *block)
+            }
         }
     }
 }
