@@ -1,4 +1,8 @@
-use super::{environment::Environment, error::RuntimeError, value::Value};
+use super::{
+    environment::Environment,
+    error::{ControlFlow, RuntimeError},
+    value::Value,
+};
 use crate::{
     parser::ast::{Expression, Statement},
     tokenizer::tokens::{Token, TokenType},
@@ -40,6 +44,12 @@ impl Interpreter {
             Statement::WhileStatement { condition, block } => {
                 self.evaluate_while_statement(*condition, *block)?;
                 None
+            }
+            Statement::BreakStatement(token) => {
+                return Err(RuntimeError::ControlFlow(ControlFlow::Break(token)))
+            }
+            Statement::ContinueStatement(token) => {
+                return Err(RuntimeError::ControlFlow(ControlFlow::Continue(token)));
             }
         };
 
@@ -85,7 +95,17 @@ impl Interpreter {
         self.environment = Environment::from(self.environment.clone());
 
         for statement in &statements {
-            self.evaluate_statement(statement.clone())?;
+            match statement {
+                Statement::BreakStatement(token) => {
+                    return Err(RuntimeError::ControlFlow(ControlFlow::Break(token.clone())))
+                }
+                Statement::ContinueStatement(token) => {
+                    return Err(RuntimeError::ControlFlow(ControlFlow::Continue(
+                        token.clone(),
+                    )))
+                }
+                _ => self.evaluate_statement(statement.clone())?,
+            };
         }
 
         let value = match return_expr {
@@ -211,14 +231,37 @@ impl Interpreter {
         condition: Expression,
         block: Expression,
     ) -> Result<Value, RuntimeError> {
+        self.environment.breakpoint = true;
         loop {
             let condition = self.evaluate_expression(condition.clone())?;
             if !self.test_truthness(&condition) {
                 return Ok(Value::Null);
             }
 
-            self.evaluate_expression(block.clone())?;
+            if let Err(err) = self.evaluate_expression(block.clone()) {
+                if let RuntimeError::ControlFlow(statement) = err {
+                    match statement {
+                        ControlFlow::Break(_) => {
+                            self.environment = self.environment.return_breakpoint();
+                            break;
+                        }
+                        ControlFlow::Continue(_) => {
+                            self.environment = self.environment.return_breakpoint();
+                            continue;
+                        }
+                        ControlFlow::Return(value, token) => {
+                            return Err(RuntimeError::ControlFlow(ControlFlow::Return(
+                                value, token,
+                            )))
+                        }
+                    }
+                } else {
+                    return Err(err);
+                }
+            };
         }
+
+        Ok(Value::Null)
     }
 
     fn test_truthness(&self, value: &Value) -> bool {
@@ -228,5 +271,67 @@ impl Interpreter {
             Value::Null => false,
             Value::String(value) => value.len() != 0,
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(unused_must_use)]
+mod test {
+    use crate::{parser::parser::Parser, runtime::value::Value, tokenizer::lexer::Lexer};
+
+    use super::Interpreter;
+
+    #[test]
+    fn test_break() {
+        let s = "
+            set i = 0;
+            while (true) {
+                if (true) {
+                    if (true) {
+                        break;
+                    }
+                }
+                i = i + 1;
+            }
+        ";
+        let tokens = Lexer::new(s).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let mut interpreter = Interpreter::new();
+
+        for node in ast {
+            interpreter.evaluate_statement(node);
+        }
+
+        let i_value = interpreter.environment.get("i".to_string()).unwrap();
+
+        assert_eq!(i_value, Value::Number(0.0));
+    }
+
+    #[test]
+    fn test_continue() {
+        let s = "
+            set i = 0;
+            set j = 0;
+            while i < 5 {
+                i = i + 1;
+                if i == 1 {
+                    continue;
+                }
+                j = j + 1;
+            }
+        ";
+        let tokens = Lexer::new(s).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let mut interpreter = Interpreter::new();
+
+        for node in ast {
+            interpreter.evaluate_statement(node);
+        }
+
+        let i_value = interpreter.environment.get("i".to_string()).unwrap();
+        let j_value = interpreter.environment.get("j".to_string()).unwrap();
+
+        assert_eq!(i_value, Value::Number(5.0));
+        assert_eq!(j_value, Value::Number(4.0));
     }
 }

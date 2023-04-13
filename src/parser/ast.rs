@@ -87,6 +87,8 @@ pub enum Statement {
         condition: Box<Expression>,
         block: Box<Expression>,
     },
+    BreakStatement(Token),
+    ContinueStatement(Token),
 }
 
 impl fmt::Display for Statement {
@@ -106,6 +108,8 @@ impl fmt::Display for Statement {
             Statement::WhileStatement { condition, block } => {
                 write!(f, "while ({}) {}", condition, *block)
             }
+            Statement::BreakStatement(_) => write!(f, "break"),
+            Statement::ContinueStatement(_) => write!(f, "continue"),
         }
     }
 }

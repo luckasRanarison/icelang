@@ -5,6 +5,7 @@ use std::collections::HashMap;
 pub struct Environment {
     pub enclosing: Option<Box<Environment>>,
     pub values: HashMap<String, Value>,
+    pub breakpoint: bool,
 }
 
 impl Environment {
@@ -12,6 +13,7 @@ impl Environment {
         Self {
             enclosing: None,
             values: HashMap::new(),
+            breakpoint: false,
         }
     }
 
@@ -19,6 +21,7 @@ impl Environment {
         Self {
             enclosing: Some(Box::new(environment)),
             values: HashMap::new(),
+            breakpoint: false,
         }
     }
 
@@ -55,5 +58,14 @@ impl Environment {
                 .enclosing
                 .as_ref()
                 .map_or(false, |e| e.global_contains(name))
+    }
+
+    pub fn return_breakpoint(&mut self) -> Environment {
+        let enclosing = self.enclosing.as_mut().unwrap();
+        if enclosing.breakpoint {
+            enclosing.as_ref().clone()
+        } else {
+            enclosing.return_breakpoint()
+        }
     }
 }

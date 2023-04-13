@@ -51,6 +51,8 @@ impl<'a> Parser<'a> {
             TokenType::Set => self.parse_variable_declaration()?,
             TokenType::Identifier(_) => self.parse_assignement()?,
             TokenType::While => self.parse_while()?,
+            TokenType::Break => self.parse_break()?,
+            TokenType::Continue => self.parse_continue()?,
             _ => {
                 let expr = self.parse_expression()?;
 
@@ -124,22 +126,25 @@ impl<'a> Parser<'a> {
         self.advance();
 
         while self.current_token.value != TokenType::RightBrace {
-            match self.current_token.value {
-                TokenType::Eof => return Err(ParsingError::MissingClosingBrace(token)),
-                _ => {
-                    let statement = self.parse_statement()?;
+            if self.current_token.value == TokenType::Eof {
+                return Err(ParsingError::MissingClosingBrace(token));
+            }
 
-                    if let Statement::ExpressionStatement(expr) = statement.clone() {
-                        if self.current_token.value == TokenType::Semicolon {
-                            self.advance();
-                            statements.push(statement);
-                        } else {
-                            return_expr = Some(Box::new(expr));
-                        }
+            let statement = self.parse_statement()?;
+
+            if let Statement::ExpressionStatement(expr) = statement.clone() {
+                if self.current_token.value == TokenType::Semicolon {
+                    self.advance();
+                    statements.push(statement);
+                } else {
+                    if self.current_token.value == TokenType::RightBrace {
+                        return_expr = Some(Box::new(expr));
                     } else {
-                        statements.push(statement)
+                        statements.push(statement);
                     }
                 }
+            } else {
+                statements.push(statement)
             }
         }
         self.is_parsing_block = false;
@@ -199,6 +204,28 @@ impl<'a> Parser<'a> {
         self.advance();
 
         Ok(while_expr)
+    }
+
+    fn parse_break(&mut self) -> Result<Statement, ParsingError> {
+        let break_stmt = Statement::BreakStatement(self.clone_token());
+        self.advance();
+        if self.current_token.value != TokenType::Semicolon {
+            return Err(ParsingError::MissingSemicolon(self.clone_token()));
+        }
+        self.advance();
+
+        Ok(break_stmt)
+    }
+
+    fn parse_continue(&mut self) -> Result<Statement, ParsingError> {
+        let break_stmt = Statement::ContinueStatement(self.clone_token());
+        self.advance();
+        if self.current_token.value != TokenType::Semicolon {
+            return Err(ParsingError::MissingSemicolon(self.clone_token()));
+        }
+        self.advance();
+
+        Ok(break_stmt)
     }
 
     fn parse_group(&mut self) -> Result<Expression, ParsingError> {
