@@ -8,8 +8,8 @@ use super::{
 use crate::{
     lexer::tokens::TokenType,
     parser::ast::{
-        Assignement, Binary, Block, Break, Continue, Declaration, Expression, If, Literal,
-        Statement, Unary, Variable, While,
+        Assignement, Binary, Block, Break, Continue, Declaration, Expression, If, Literal, Loop,
+        Match, Statement, Unary, Variable, While,
     },
 };
 
@@ -66,6 +66,7 @@ impl EvalStmt for Statement {
             Statement::VariableAssignement(stmt) => stmt.evaluate(env),
             Statement::BlockStatement(stmt) => stmt.evaluate(env),
             Statement::WhileStatement(stmt) => stmt.evaluate(env),
+            Statement::LoopStatement(stmt) => stmt.evaluate(env),
             Statement::BreakStatement(stmt) => stmt.evaluate(env),
             Statement::ContinueStatement(stmt) => stmt.evaluate(env),
         }
@@ -144,6 +145,29 @@ impl Eval for While {
     }
 }
 
+impl Eval for Loop {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        loop {
+            if let Some(error) = self.block.evaluate(env).err() {
+                match error {
+                    RuntimeError::ControlFlow(statement) => match statement {
+                        ControlFlow::Break(_) => break,
+                        ControlFlow::Continue(_) => continue,
+                        ControlFlow::Return(value, token) => {
+                            return Err(RuntimeError::ControlFlow(
+                                super::error::ControlFlow::Return(value, token),
+                            ))
+                        }
+                    },
+                    _ => return Err(error),
+                }
+            }
+        }
+
+        Ok(None)
+    }
+}
+
 impl Eval for Break {
     fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
         Err(RuntimeError::ControlFlow(super::error::ControlFlow::Break(
@@ -172,6 +196,7 @@ impl EvalExpr for Expression {
             Expression::UnaryExpression(expr) => expr.evaluate_expression(env),
             Expression::BinaryExpression(expr) => expr.evaluate_expression(env),
             Expression::IfExpression(expr) => expr.evaluate_expression(env),
+            Expression::MatchExpression(expr) => expr.evaluate_expression(env),
         }
     }
 }
@@ -298,6 +323,34 @@ impl EvalExpr for If {
     }
 }
 
+impl EvalExpr for Match {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let match_pattern = self.pattern.evaluate_expression(env)?;
+
+        for arm in &self.arms {
+            for pattern in &arm.pattern {
+                let value = pattern.evaluate_expression(env)?;
+
+                if match_pattern == value {
+                    match &arm.block.evaluate(env)? {
+                        Some(value) => return Ok(value.clone()),
+                        None => return Ok(Value::Null),
+                    }
+                }
+            }
+        }
+
+        if let Some(defalut) = &self.default {
+            match defalut.block.evaluate(env)? {
+                Some(value) => return Ok(value.clone()),
+                None => return Ok(Value::Null),
+            }
+        }
+
+        Ok(Value::Null)
+    }
+}
+
 #[cfg(test)]
 #[allow(unused_must_use)]
 mod test {
@@ -398,6 +451,28 @@ mod test {
     }
 
     #[test]
+    fn test_loop() {
+        let source = "
+            set i = 0;
+            loop {
+                if (i == 5) {
+                    break;
+                }
+                i = i + 1;
+            } 
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("i"), Value::Number(5.0));
+    }
+
+    #[test]
     fn test_control_flows() {
         let source = "
             set i = 0;
@@ -420,5 +495,31 @@ mod test {
         let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
 
         assert_eq!(get("i"), Value::Number(6.0));
+    }
+
+    #[test]
+
+    fn test_match() {
+        let source = "
+            set a = 3;
+            set b = match a {
+                1: false,
+                false: {
+                    'unreachable'
+                },
+                6, 3: {
+                    true
+                },
+            };
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("b"), Value::Boolean(true));
     }
 }

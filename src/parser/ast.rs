@@ -9,6 +9,7 @@ pub enum Expression {
     UnaryExpression(Unary),
     BinaryExpression(Binary),
     IfExpression(If),
+    MatchExpression(Match),
 }
 
 impl fmt::Display for Expression {
@@ -19,6 +20,7 @@ impl fmt::Display for Expression {
             Expression::UnaryExpression(e) => write!(f, "{e}"),
             Expression::BinaryExpression(e) => write!(f, "{e}"),
             Expression::IfExpression(e) => write!(f, "{e}"),
+            Expression::MatchExpression(e) => write!(f, "{e}"),
         }
     }
 }
@@ -92,12 +94,53 @@ impl fmt::Display for If {
 }
 
 #[derive(Debug, Clone)]
+pub struct MatchArm {
+    pub pattern: Vec<Box<Expression>>,
+    pub block: Box<Statement>,
+}
+
+impl fmt::Display for MatchArm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        let mut iter = self.pattern.iter();
+        if let Some(pattern) = iter.next() {
+            s.push_str(&format!("{}", pattern));
+            for pattern in iter {
+                s.push_str(&format!(" | {}", pattern));
+            }
+        }
+        write!(f, "[( {} ) {}]", s, self.block)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Match {
+    pub pattern: Box<Expression>,
+    pub arms: Vec<MatchArm>,
+    pub default: Option<MatchArm>,
+}
+
+impl fmt::Display for Match {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        for arm in &self.arms {
+            s.push_str(&format!(" {}", arm))
+        }
+        if let Some(defalut) = &self.default {
+            s.push_str(&format!(" {}", defalut));
+        }
+        write!(f, "match ({}){}", self.pattern, s)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Statement {
     VariableDeclaration(Declaration),
     VariableAssignement(Assignement),
     ExpressionStatement(Expression),
     BlockStatement(Block),
     WhileStatement(While),
+    LoopStatement(Loop),
     BreakStatement(Break),
     ContinueStatement(Continue),
 }
@@ -112,6 +155,7 @@ impl fmt::Display for Statement {
             Statement::WhileStatement(s) => write!(f, "{s}"),
             Statement::BreakStatement(s) => write!(f, "{s}"),
             Statement::ContinueStatement(s) => write!(f, "{s}"),
+            Statement::LoopStatement(s) => write!(f, "{s}"),
         }
     }
 }
@@ -164,6 +208,17 @@ pub struct While {
 impl fmt::Display for While {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "while ({}) {}", self.condition, self.block)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Loop {
+    pub block: Box<Statement>,
+}
+
+impl fmt::Display for Loop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "loop {}", self.block)
     }
 }
 

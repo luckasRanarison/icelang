@@ -51,6 +51,7 @@ impl<'a> Parser<'a> {
             TokenType::Identifier(_) => self.parse_assignement()?,
             TokenType::LeftBrace => self.parse_block()?,
             TokenType::While => self.parse_while()?,
+            TokenType::Loop => self.parse_loop()?,
             TokenType::Break => self.parse_break()?,
             TokenType::Continue => self.parse_continue()?,
             _ => Statement::ExpressionStatement(self.parse_expression()?),
@@ -121,6 +122,19 @@ impl<'a> Parser<'a> {
 
         let block = Box::new(self.parse_block()?);
         let statement = Statement::WhileStatement(While { condition, block });
+
+        Ok(statement)
+    }
+
+    fn parse_loop(&mut self) -> Result<Statement, ParsingError> {
+        self.advance();
+
+        if self.current_token.value != TokenType::LeftBrace {
+            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+        }
+
+        let block = Box::new(self.parse_block()?);
+        let statement = Statement::LoopStatement(Loop { block });
 
         Ok(statement)
     }
@@ -300,6 +314,7 @@ impl<'a> Parser<'a> {
         let expression = match &self.current_token.value {
             TokenType::Eof => return Err(ParsingError::UnexpedtedEndOfInput(token)),
             TokenType::If => return self.parse_if(),
+            TokenType::Match => return self.parse_match(),
             TokenType::LeftParenthesis => self.parse_group()?,
             TokenType::Identifier(_) => {
                 let next_token = self.peek();
@@ -368,6 +383,92 @@ impl<'a> Parser<'a> {
         });
 
         Ok(if_exression)
+    }
+
+    fn parse_match(&mut self) -> Result<Expression, ParsingError> {
+        self.advance();
+        let pattern = Box::new(self.parse_expression()?);
+
+        if self.current_token.value != TokenType::LeftBrace {
+            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+        }
+
+        self.advance();
+        let mut arms: Vec<MatchArm> = vec![];
+        let mut default = None;
+
+        while self.current_token.value != TokenType::RightBrace {
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::MissingClosingBrace(self.clone_token()));
+            }
+
+            if let TokenType::Identifier(ident) = &self.current_token.value {
+                if ident == "_" {
+                    default = Some(self.parse_match_arm()?);
+                } else {
+                    arms.push(self.parse_match_arm()?);
+                }
+            } else {
+                arms.push(self.parse_match_arm()?);
+            }
+
+            if self.current_token.value != TokenType::Comma {
+                return Err(ParsingError::MissingComma(self.clone_token()));
+            }
+
+            self.advance();
+        }
+        self.advance();
+        let expression = Expression::MatchExpression(Match {
+            pattern,
+            arms,
+            default,
+        });
+
+        Ok(expression)
+    }
+
+    fn parse_match_arm(&mut self) -> Result<MatchArm, ParsingError> {
+        let mut pattern: Vec<Box<Expression>> = vec![];
+        loop {
+            let token = self.clone_token();
+            let expr = match &self.current_token.value {
+                TokenType::Colon => break,
+                TokenType::Eof => return Err(ParsingError::UnexpedtedEndOfInput(token)),
+                TokenType::Comma => {
+                    self.advance();
+                    continue;
+                }
+                TokenType::Identifier(ident) => {
+                    if ident == "_" {
+                        self.advance();
+
+                        if self.current_token.value != TokenType::Colon {
+                            return Err(ParsingError::UnexpectedToken(self.clone_token()));
+                        }
+
+                        Box::new(Expression::LiteralExpression(Literal {
+                            token: token.clone(),
+                        }))
+                    } else {
+                        Box::new(self.parse_expression()?)
+                    }
+                }
+                _ => Box::new(self.parse_expression()?),
+            };
+
+            pattern.push(expr);
+        }
+
+        if pattern.is_empty() {
+            return Err(ParsingError::MissingArmExpression(self.clone_token()));
+        }
+
+        self.advance();
+        let block = Box::new(self.parse_statement()?);
+        let arm = MatchArm { pattern, block };
+
+        Ok(arm)
     }
 }
 
@@ -475,6 +576,44 @@ mod test {
             }
         ";
         let expected = "while (true) { i = (i + 1); if ((i == 3)) { continue; }; if (((i % 3) == 0)) { break; }; }";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.get(1).unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_loop() {
+        let stmt = "
+            loop {
+                if (true) {
+                    break;
+                }
+            }
+        ";
+        let expected = "loop { if (true) { break; }; }";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_match() {
+        let stmt = "
+            set a = 2;
+            set b = match a {
+                0, 1: {
+                    false
+                },
+                2: true, 
+                _: {
+                    'unreachable' 
+                },
+            };
+        ";
+        let expected =
+            "set b = match (a) [( 0 | 1 ) { false; }] [( 2 ) true] [( _ ) { 'unreachable'; }]";
         let tokens = Lexer::new(stmt).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.get(1).unwrap();

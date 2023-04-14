@@ -25,4 +25,8 @@ pub enum ParsingError {
     MissingClosingBrace(Token),
     #[error("expected identifer but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedIdentifier(Token),
+    #[error("missing match arm expression at line {}", .0.pos)]
+    MissingArmExpression(Token),
+    #[error("missing comma ',' at line '{}'", .0.pos)]
+    MissingComma(Token),
 }
