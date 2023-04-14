@@ -8,7 +8,6 @@ pub enum TokenType {
     Identifier(String),
 
     Set,
-    Freeze,
     Null,
     True,
     False,
@@ -26,7 +25,6 @@ pub enum TokenType {
     Continue,
     Function,
     Return,
-    Expose,
     Import,
     Export,
 
@@ -120,6 +118,32 @@ impl TokenType {
             | TokenType::True
             | TokenType::False
             | TokenType::Null => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        match self {
+            TokenType::Set
+            | TokenType::Null
+            | TokenType::True
+            | TokenType::False
+            | TokenType::And
+            | TokenType::Or
+            | TokenType::If
+            | TokenType::Else
+            | TokenType::For
+            | TokenType::To
+            | TokenType::While
+            | TokenType::Loop
+            | TokenType::Foreach
+            | TokenType::In
+            | TokenType::Break
+            | TokenType::Continue
+            | TokenType::Function
+            | TokenType::Return
+            | TokenType::Import
+            | TokenType::Export => true,
             _ => false,
         }
     }

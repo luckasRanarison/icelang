@@ -81,7 +81,7 @@ impl fmt::Display for If {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut else_branch = String::new();
         if let Some(branch) = &self.else_branch {
-            else_branch.push_str(&format!("else {}", branch))
+            else_branch.push_str(&format!(" else {}", branch))
         }
         write!(
             f,
@@ -127,7 +127,7 @@ impl fmt::Display for Block {
         for statement in &self.statements {
             s.push_str(&format!(" {};", *statement))
         }
-        write!(f, "{{{s }}}")
+        write!(f, "{{{s} }}")
     }
 }
 

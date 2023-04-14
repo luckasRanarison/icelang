@@ -18,7 +18,7 @@ fn main() {
 
 fn repl_mode() {
     println!("Welcome to icelang REPL mode!");
-    let mut interpreter = Interpreter::new();
+    let interpreter = Interpreter::new();
     let mut input_queue = String::new();
 
     loop {
@@ -69,7 +69,7 @@ fn repl_mode() {
                 }
                 _ => {
                     input_queue.clear();
-                    println!("Parsing error: {}", err);
+                    println!("Syntax error: {}", err);
                     continue;
                 }
             },

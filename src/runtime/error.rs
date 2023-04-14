@@ -1,50 +1,27 @@
 use super::value::Value;
 use crate::lexer::{tokens::Token, utils::Position};
-use std::fmt;
+use thiserror::Error;
 
+#[derive(Debug, Error)]
 pub enum RuntimeError {
-    TypeMismatch(String, Position),
+    #[error("expected '{0}', but found '{1}' at {2}")]
+    TypeExpection(String, String, Position),
+    #[error("{0} at {1}")]
+    InvalidOperation(String, Position),
+    #[error("undefined variable '{}' at {}", .0.lexeme, .0.pos)]
     UndefinedVariable(Token),
+    #[error("redeclaring existing variable '{}' at {}", .0.lexeme, .0.pos)]
     RedeclaringVariable(Token),
+    #[error("{0}")]
     ControlFlow(ControlFlow),
 }
 
+#[derive(Debug, Error)]
 pub enum ControlFlow {
+    #[error("unexpected break statement outside of a loop at {}", .0.pos)]
     Break(Token),
+    #[error("unexpected continue statement outside of a loop at {}", .0.pos)]
     Continue(Token),
+    #[error("unexpected return statement outside of a function at {}", .1.pos)]
     Return(Value, Token),
-}
-
-impl fmt::Display for RuntimeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RuntimeError::TypeMismatch(message, pos) => write!(
-                f,
-                "type mismatch: {} at line {} col {}, ",
-                message, pos.line, pos.col_start
-            ),
-            RuntimeError::UndefinedVariable(variable) => write!(
-                f,
-                "undefined variable '{}' at line {} col {}",
-                variable.lexeme, variable.pos.line, variable.pos.col_start
-            ),
-            Self::RedeclaringVariable(variable) => write!(
-                f,
-                "redeclaring existing variable '{}' at line {} col {}",
-                variable.lexeme, variable.pos.line, variable.pos.col_start
-            ),
-            RuntimeError::ControlFlow(statement) => match statement {
-                ControlFlow::Break(token) | ControlFlow::Continue(token) => write!(
-                    f,
-                    "unexpected {} statement outside of a loop at line {} col {}",
-                    token.lexeme, token.pos.line, token.pos.col_start
-                ),
-                ControlFlow::Return(_, token) => write!(
-                    f,
-                    "unexpected return statement at line {} col {}",
-                    token.pos.line, token.pos.col_start
-                ),
-            },
-        }
-    }
 }

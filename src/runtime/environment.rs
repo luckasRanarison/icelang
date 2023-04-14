@@ -1,10 +1,12 @@
+use super::value::Value;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use super::value::Value;
+pub type RefEnv = Rc<RefCell<Environment>>;
 
+#[derive(Debug)]
 pub struct Environment {
     values: HashMap<String, Value>,
-    parent: Option<Rc<RefCell<Environment>>>,
+    parent: Option<RefEnv>,
 }
 
 impl Environment {
@@ -26,7 +28,7 @@ impl Environment {
         if let Some(value) = self.values.get(name) {
             Some(value.clone())
         } else if let Some(parent) = &self.parent {
-            parent.as_ref().borrow().get(name)
+            parent.borrow().get(name)
         } else {
             None
         }
@@ -41,13 +43,13 @@ impl Environment {
             self.set(name, value);
             true
         } else if let Some(parent) = &self.parent {
-            parent.as_ref().borrow_mut().assign(name, value)
+            parent.borrow_mut().assign(name, value)
         } else {
             false
         }
     }
 
-    pub fn local_contains(&self, name: &str) -> bool {
+    pub fn contains(&self, name: &str) -> bool {
         self.values.contains_key(name)
     }
 }

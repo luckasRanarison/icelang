@@ -241,7 +241,6 @@ impl<'a> Lexer<'a> {
 
         let token_type = match self.current_lexeme.as_str() {
             "set" => TokenType::Set,
-            "freeze" => TokenType::Freeze,
             "true" => TokenType::True,
             "false" => TokenType::False,
             "null" => TokenType::Null,
@@ -259,7 +258,6 @@ impl<'a> Lexer<'a> {
             "continue" => TokenType::Continue,
             "function" => TokenType::Function,
             "return" => TokenType::Return,
-            "expose" => TokenType::Expose,
             "import" => TokenType::Import,
             "export" => TokenType::Export,
             _ => TokenType::Identifier(self.current_lexeme.clone()),
