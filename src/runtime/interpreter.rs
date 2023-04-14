@@ -1,275 +1,299 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::{
-    environment::Environment,
+    environment::{Environment, RefEnv},
     error::{ControlFlow, RuntimeError},
     value::Value,
 };
 use crate::{
-    parser::ast::{Expression, Statement},
-    tokenizer::tokens::{Token, TokenType},
+    lexer::tokens::TokenType,
+    parser::ast::{
+        Assignement, Binary, Block, Break, Continue, Declaration, Expression, If, Literal,
+        Statement, Unary, Variable, While,
+    },
 };
 
-#[derive(Debug)]
 pub struct Interpreter {
-    environment: Environment,
+    environment: RefEnv,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            environment: Environment::new(),
+            environment: Rc::new(RefCell::new(Environment::new())),
         }
     }
 
-    pub fn evaluate_statement(&mut self, node: Statement) -> Result<Option<Value>, RuntimeError> {
-        let value = match node {
-            Statement::VariableDeclaration { token, name, value } => {
-                if self.environment.local_contains(&name) {
-                    return Err(RuntimeError::RedeclaringVariable(token));
+    pub fn interpret<T: Eval>(&self, node: T) -> Result<Option<Value>, RuntimeError> {
+        Ok(node.evaluate(&self.environment)?)
+    }
+}
+
+fn is_truthy(value: &Value) -> bool {
+    match value {
+        Value::Number(value) => *value != 0.0,
+        Value::Boolean(value) => *value,
+        Value::Null => false,
+        Value::String(value) => value.len() != 0,
+    }
+}
+
+pub trait Eval {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError>;
+}
+
+impl Eval for Statement {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        self.evaluate_statement(env)
+    }
+}
+
+impl Eval for Expression {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        Ok(Some(self.evaluate_expression(env)?))
+    }
+}
+
+pub trait EvalStmt {
+    fn evaluate_statement(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError>;
+}
+
+impl EvalStmt for Statement {
+    fn evaluate_statement(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        match self {
+            Statement::ExpressionStatement(stmt) => stmt.evaluate(env),
+            Statement::VariableDeclaration(stmt) => stmt.evaluate(env),
+            Statement::VariableAssignement(stmt) => stmt.evaluate(env),
+            Statement::BlockStatement(stmt) => stmt.evaluate(env),
+            Statement::WhileStatement(stmt) => stmt.evaluate(env),
+            Statement::BreakStatement(stmt) => stmt.evaluate(env),
+            Statement::ContinueStatement(stmt) => stmt.evaluate(env),
+        }
+    }
+}
+
+impl Eval for Declaration {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        let name = &self.name.lexeme;
+
+        if env.borrow().contains(name) {
+            return Err(RuntimeError::RedeclaringVariable(self.name.clone()));
+        }
+
+        let value = self.value.evaluate_expression(env)?;
+        env.borrow_mut().set(&name, value);
+
+        Ok(None)
+    }
+}
+
+impl Eval for Assignement {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        let name = &self.name.lexeme;
+        let value = self.value.evaluate_expression(env)?;
+
+        if env.borrow_mut().assign(name, value) {
+            Ok(None)
+        } else {
+            Err(RuntimeError::UndefinedVariable(self.name.clone()))
+        }
+    }
+}
+
+impl Eval for Block {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        let new_env = Rc::new(RefCell::new(Environment::from(env.clone())));
+        let len = self.statements.len();
+
+        for (index, statement) in self.statements.iter().enumerate() {
+            if index == len - 1 {
+                return statement.evaluate(&new_env);
+            }
+            statement.evaluate(&new_env)?;
+        }
+
+        Ok(None)
+    }
+}
+
+impl Eval for While {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        loop {
+            let condition = self.condition.evaluate_expression(env)?;
+            if !is_truthy(&condition) {
+                break;
+            }
+
+            if let Some(error) = self.block.evaluate(env).err() {
+                match error {
+                    RuntimeError::ControlFlow(statement) => match statement {
+                        ControlFlow::Break(_) => break,
+                        ControlFlow::Continue(_) => continue,
+                        ControlFlow::Return(value, token) => {
+                            return Err(RuntimeError::ControlFlow(
+                                super::error::ControlFlow::Return(value, token),
+                            ))
+                        }
+                    },
+                    _ => return Err(error),
                 }
-
-                let value = self.evaluate_expression(value)?;
-                self.environment.store(name, value.clone());
-                None
             }
-            Statement::VariableAssignement { token, name, value } => {
-                if !self.environment.global_contains(&name) {
-                    return Err(RuntimeError::UndefinedVariable(token));
-                }
-
-                let value = self.evaluate_expression(value)?;
-                self.environment.assign(name, value.clone());
-                None
-            }
-            Statement::ExpressionStatement(expr) => Some(self.evaluate_expression(expr)?),
-            Statement::WhileStatement { condition, block } => {
-                self.evaluate_while_statement(*condition, *block)?;
-                None
-            }
-            Statement::BreakStatement(token) => {
-                return Err(RuntimeError::ControlFlow(ControlFlow::Break(token)))
-            }
-            Statement::ContinueStatement(token) => {
-                return Err(RuntimeError::ControlFlow(ControlFlow::Continue(token)));
-            }
-        };
-
-        Ok(value)
-    }
-
-    fn evaluate_expression(&mut self, expr: Expression) -> Result<Value, RuntimeError> {
-        match expr {
-            Expression::Literal(literal) => Ok(self.evaluate_literal(literal)),
-            Expression::VariableExpression(variable) => Ok(self.evaluate_variable(variable)?),
-            Expression::UnaryExpression { operator, operand } => {
-                Ok(self.evaluate_unary(operator, *operand)?)
-            }
-            Expression::BinaryExpression {
-                left,
-                operator,
-                right,
-            } => Ok(self.evaluate_binary(*left, operator, *right)?),
-            Expression::BlockExpression {
-                statements,
-                return_expr,
-            } => Ok(self.evaluate_block(statements, return_expr)?),
-            Expression::IfExpression {
-                condition,
-                true_branch,
-                else_branch,
-            } => Ok(self.evaluate_if_expression(condition, true_branch, else_branch)?),
-        }
-    }
-
-    fn evaluate_variable(&self, variable: Token) -> Result<Value, RuntimeError> {
-        match self.environment.get(variable.lexeme.clone()) {
-            Some(value) => Ok(value),
-            None => Err(RuntimeError::UndefinedVariable(variable.clone())),
-        }
-    }
-
-    fn evaluate_block(
-        &mut self,
-        statements: Vec<Statement>,
-        return_expr: Option<Box<Expression>>,
-    ) -> Result<Value, RuntimeError> {
-        self.environment = Environment::from(self.environment.clone());
-
-        for statement in &statements {
-            match statement {
-                Statement::BreakStatement(token) => {
-                    return Err(RuntimeError::ControlFlow(ControlFlow::Break(token.clone())))
-                }
-                Statement::ContinueStatement(token) => {
-                    return Err(RuntimeError::ControlFlow(ControlFlow::Continue(
-                        token.clone(),
-                    )))
-                }
-                _ => self.evaluate_statement(statement.clone())?,
-            };
         }
 
-        let value = match return_expr {
-            Some(expr) => self.evaluate_expression(*expr)?,
-            None => Value::Null,
-        };
-
-        if let Some(enclosing) = self.environment.enclosing.as_mut() {
-            self.environment = *enclosing.clone();
-        }
-
-        Ok(value)
+        Ok(None)
     }
+}
 
-    fn evaluate_literal(&self, literal: Token) -> Value {
-        match &literal.value {
+impl Eval for Break {
+    fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        Err(RuntimeError::ControlFlow(super::error::ControlFlow::Break(
+            self.token.clone(),
+        )))
+    }
+}
+
+impl Eval for Continue {
+    fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        Err(RuntimeError::ControlFlow(
+            super::error::ControlFlow::Continue(self.token.clone()),
+        ))
+    }
+}
+
+pub trait EvalExpr {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError>;
+}
+
+impl EvalExpr for Expression {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        match self {
+            Expression::LiteralExpression(expr) => expr.evaluate_expression(env),
+            Expression::VariableExpression(expr) => expr.evaluate_expression(env),
+            Expression::UnaryExpression(expr) => expr.evaluate_expression(env),
+            Expression::BinaryExpression(expr) => expr.evaluate_expression(env),
+            Expression::IfExpression(expr) => expr.evaluate_expression(env),
+        }
+    }
+}
+
+impl EvalExpr for Literal {
+    fn evaluate_expression(&self, _env: &RefEnv) -> Result<Value, RuntimeError> {
+        let value = match &self.token.value {
             TokenType::Number(value) => Value::Number(*value),
             TokenType::String(value) => Value::String(value.clone()),
+            TokenType::Null => Value::Null,
             TokenType::True => Value::Boolean(true),
             TokenType::False => Value::Boolean(false),
-            _ => Value::Null,
+            _ => unreachable!(),
+        };
+
+        Ok(value)
+    }
+}
+
+impl EvalExpr for Variable {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let name = &self.token.lexeme;
+
+        if let Some(value) = env.borrow_mut().get(name) {
+            Ok(value)
+        } else {
+            Err(RuntimeError::UndefinedVariable(self.token.clone()))
         }
     }
+}
 
-    fn evaluate_unary(
-        &mut self,
-        operator: Token,
-        operand: Expression,
-    ) -> Result<Value, RuntimeError> {
-        let right = self.evaluate_expression(operand)?;
-
-        match operator.value {
-            TokenType::Minus => match right {
+impl EvalExpr for Unary {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let operand = self.operand.evaluate_expression(env)?;
+        match &self.operator.value {
+            TokenType::Minus => match operand {
                 Value::Number(value) => Ok(Value::Number(-value)),
-                _ => Err(RuntimeError::TypeMismatch(
-                    format!("expected 'number' but found '{}'", right.get_type()),
-                    operator.pos,
+                _ => Err(RuntimeError::TypeExpection(
+                    "number".to_owned(),
+                    operand.get_type(),
+                    self.operator.pos,
                 )),
             },
-            TokenType::Bang => match right {
+            TokenType::Bang => match operand {
                 Value::Boolean(value) => Ok(Value::Boolean(!value)),
                 _ => Ok(Value::Boolean(true)),
             },
             _ => unreachable!(),
         }
     }
+}
 
-    fn evaluate_binary(
-        &mut self,
-        left: Expression,
-        operator: Token,
-        right: Expression,
-    ) -> Result<Value, RuntimeError> {
-        let lhs = self.evaluate_expression(left)?;
-        let rhs = self.evaluate_expression(right)?;
-        let left_type = lhs.get_type();
-        let right_type = rhs.get_type();
+impl EvalExpr for Binary {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let left = self.left.evaluate_expression(env)?;
+        let right = self.right.evaluate_expression(env)?;
+        let left_type = left.get_type();
+        let right_type = right.get_type();
 
-        match operator.value {
-            TokenType::Asterix => match lhs * rhs {
+        match &self.operator.value {
+            TokenType::Asterix => match left * right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::TypeMismatch(
+                None => Err(RuntimeError::InvalidOperation(
                     format!("can't multiply a '{}' by a '{}'", left_type, right_type),
-                    operator.pos,
+                    self.operator.pos,
                 )),
             },
-            TokenType::Slash => match lhs / rhs {
+            TokenType::Slash => match left / right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::TypeMismatch(
+                None => Err(RuntimeError::InvalidOperation(
                     format!("can't divide a '{}' by a '{}'", left_type, right_type),
-                    operator.pos,
+                    self.operator.pos,
                 )),
             },
-            TokenType::Minus => match lhs - rhs {
+            TokenType::Minus => match left - right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::TypeMismatch(
+                None => Err(RuntimeError::InvalidOperation(
                     format!("can't substract a '{}' by a '{}'", left_type, right_type),
-                    operator.pos,
+                    self.operator.pos,
                 )),
             },
-            TokenType::Plus => match lhs + rhs {
+            TokenType::Plus => match left + right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::TypeMismatch(
+                None => Err(RuntimeError::InvalidOperation(
                     format!("can't add a '{}' by a '{}'", left_type, right_type),
-                    operator.pos,
+                    self.operator.pos,
                 )),
             },
-            TokenType::Greater => Ok(Value::Boolean(lhs > rhs)),
-            TokenType::GreaterEqual => Ok(Value::Boolean(lhs >= rhs)),
-            TokenType::Less => Ok(Value::Boolean(lhs < rhs)),
-            TokenType::LessEqual => Ok(Value::Boolean(lhs <= rhs)),
-            TokenType::EqualEqual => Ok(Value::Boolean(lhs == rhs)),
-            TokenType::BangEqual => Ok(Value::Boolean(lhs != rhs)),
-            TokenType::And => Ok(Value::Boolean(
-                self.test_truthness(&lhs) && self.test_truthness(&rhs),
-            )),
-            TokenType::Or => Ok(Value::Boolean(
-                self.test_truthness(&lhs) || self.test_truthness(&rhs),
-            )),
+            TokenType::Modulo => match left % right {
+                Some(value) => Ok(value),
+                None => Err(RuntimeError::InvalidOperation(
+                    format!("can't divide a '{}' by a '{}'", left_type, right_type),
+                    self.operator.pos,
+                )),
+            },
+            TokenType::Greater => Ok(Value::Boolean(left > right)),
+            TokenType::GreaterEqual => Ok(Value::Boolean(left >= right)),
+            TokenType::Less => Ok(Value::Boolean(left < right)),
+            TokenType::LessEqual => Ok(Value::Boolean(left <= right)),
+            TokenType::EqualEqual => Ok(Value::Boolean(left == right)),
+            TokenType::BangEqual => Ok(Value::Boolean(left != right)),
+            TokenType::And => Ok(Value::Boolean(is_truthy(&left) && is_truthy(&right))),
+            TokenType::Or => Ok(Value::Boolean(is_truthy(&left) || is_truthy(&right))),
             _ => unreachable!(),
         }
     }
+}
 
-    fn evaluate_if_expression(
-        &mut self,
-        condition: Box<Expression>,
-        true_branch: Box<Expression>,
-        else_branch: Option<Box<Expression>>,
-    ) -> Result<Value, RuntimeError> {
-        let condition = self.evaluate_expression(*condition)?;
+impl EvalExpr for If {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let condition = self.condition.evaluate_expression(env)?;
+        let mut value = None;
 
-        if self.test_truthness(&condition) {
-            return self.evaluate_expression(*true_branch);
-        } else if let Some(else_branch) = else_branch {
-            return self.evaluate_expression(*else_branch);
+        if is_truthy(&condition) {
+            value = self.true_branch.evaluate(env)?;
+        } else if let Some(else_branch) = &self.else_branch {
+            value = else_branch.evaluate(env)?;
         }
 
-        Ok(Value::Null)
-    }
-
-    fn evaluate_while_statement(
-        &mut self,
-        condition: Expression,
-        block: Expression,
-    ) -> Result<Value, RuntimeError> {
-        self.environment.breakpoint = true;
-        loop {
-            let condition = self.evaluate_expression(condition.clone())?;
-            if !self.test_truthness(&condition) {
-                return Ok(Value::Null);
-            }
-
-            if let Err(err) = self.evaluate_expression(block.clone()) {
-                if let RuntimeError::ControlFlow(statement) = err {
-                    match statement {
-                        ControlFlow::Break(_) => {
-                            self.environment = self.environment.return_breakpoint();
-                            break;
-                        }
-                        ControlFlow::Continue(_) => {
-                            self.environment = self.environment.return_breakpoint();
-                            continue;
-                        }
-                        ControlFlow::Return(value, token) => {
-                            return Err(RuntimeError::ControlFlow(ControlFlow::Return(
-                                value, token,
-                            )))
-                        }
-                    }
-                } else {
-                    return Err(err);
-                }
-            };
-        }
-
-        Ok(Value::Null)
-    }
-
-    fn test_truthness(&self, value: &Value) -> bool {
         match value {
-            Value::Number(value) => *value != 0.0,
-            Value::Boolean(value) => *value,
-            Value::Null => false,
-            Value::String(value) => value.len() != 0,
+            Some(value) => Ok(value),
+            None => Ok(Value::Null),
         }
     }
 }
@@ -277,61 +301,124 @@ impl Interpreter {
 #[cfg(test)]
 #[allow(unused_must_use)]
 mod test {
-    use crate::{parser::parser::Parser, runtime::value::Value, tokenizer::lexer::Lexer};
-
     use super::Interpreter;
+    use crate::{lexer::Lexer, parser::Parser, runtime::value::Value};
 
     #[test]
-    fn test_break() {
-        let s = "
-            set i = 0;
-            while (true) {
-                if (true) {
-                    if (true) {
-                        break;
-                    }
-                }
-                i = i + 1;
-            }
+    fn test_eval_operations() {
+        let source = "
+            set a = 2;
+            set b = 4;
+            set c = (a + b) % 2 == 0;
+            b = a * b;
         ";
-        let tokens = Lexer::new(s).tokenize().unwrap();
+        let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let mut interpreter = Interpreter::new();
-
+        let interpreter = Interpreter::new();
         for node in ast {
-            interpreter.evaluate_statement(node);
+            interpreter.interpret(node);
         }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
 
-        let i_value = interpreter.environment.get("i".to_string()).unwrap();
-
-        assert_eq!(i_value, Value::Number(0.0));
+        assert_eq!(get("a"), Value::Number(2.0));
+        assert_eq!(get("b"), Value::Number(8.0));
+        assert_eq!(get("c"), Value::Boolean(true));
     }
 
     #[test]
-    fn test_continue() {
-        let s = "
-            set i = 0;
-            set j = 0;
-            while i < 5 {
-                i = i + 1;
-                if i == 1 {
-                    continue;
+    fn test_eval_block() {
+        let source = "
+            set a = 2;
+            {
+                a = 3;
+                {
+                    set a = 4;
                 }
-                j = j + 1;
+                set b = false;
             }
         ";
-        let tokens = Lexer::new(s).tokenize().unwrap();
+        let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let mut interpreter = Interpreter::new();
-
+        let interpreter = Interpreter::new();
         for node in ast {
-            interpreter.evaluate_statement(node);
+            interpreter.interpret(node);
         }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+        let contains = |name| interpreter.environment.as_ref().borrow().contains(name);
 
-        let i_value = interpreter.environment.get("i".to_string()).unwrap();
-        let j_value = interpreter.environment.get("j".to_string()).unwrap();
+        assert_eq!(get("a"), Value::Number(3.0));
+        assert_eq!(contains("b"), false);
+    }
 
-        assert_eq!(i_value, Value::Number(5.0));
-        assert_eq!(j_value, Value::Number(4.0));
+    #[test]
+    fn test_eval_if() {
+        let source = "
+            set a = true;
+            set b = if a {1} else {0};
+            a = 2;
+            set c = 3;
+            set max = if (a > b and a > c) {
+                a
+            } else if (b > a and b > c) {
+                b
+            } else {
+                c
+            };
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("a"), Value::Number(2.0));
+        assert_eq!(get("b"), Value::Number(1.0));
+        assert_eq!(get("max"), get("c"));
+    }
+
+    #[test]
+    fn test_while() {
+        let source = "
+            set i = 0;
+            while i < 5 {
+                i = i + 1;
+            }
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("i"), Value::Number(5.0));
+    }
+
+    #[test]
+    fn test_control_flows() {
+        let source = "
+            set i = 0;
+            while true {
+                i = i + 1;
+                if i == 3 {
+                    continue;
+                } 
+                if (i % 3) == 0 {
+                    break;
+                }
+            }
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("i"), Value::Number(6.0));
     }
 }

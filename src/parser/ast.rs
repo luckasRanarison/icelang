@@ -1,115 +1,190 @@
-use crate::tokenizer::tokens::Token;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+use crate::lexer::tokens::Token;
+
+#[derive(Debug, Clone)]
 pub enum Expression {
-    Literal(Token),
-    VariableExpression(Token),
-    UnaryExpression {
-        operator: Token,
-        operand: Box<Expression>,
-    },
-    BinaryExpression {
-        left: Box<Expression>,
-        operator: Token,
-        right: Box<Expression>,
-    },
-    IfExpression {
-        condition: Box<Expression>,
-        true_branch: Box<Expression>,
-        else_branch: Option<Box<Expression>>,
-    },
-    BlockExpression {
-        statements: Vec<Statement>,
-        return_expr: Option<Box<Expression>>,
-    },
+    LiteralExpression(Literal),
+    VariableExpression(Variable),
+    UnaryExpression(Unary),
+    BinaryExpression(Binary),
+    IfExpression(If),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expression::Literal(token) => write!(f, "{}", token.lexeme),
-            Expression::UnaryExpression { operator, operand } => {
-                write!(f, "({}{})", operator.lexeme, *operand)
-            }
-            Expression::BinaryExpression {
-                left,
-                operator,
-                right,
-            } => write!(f, "({} {} {})", *left, operator.lexeme, *right),
-            Expression::VariableExpression(token) => write!(f, "{}", token.lexeme),
-            Expression::BlockExpression {
-                statements,
-                return_expr,
-            } => {
-                let mut s = String::new();
-
-                for statement in statements {
-                    s.push_str(&format!(" {};", *statement));
-                }
-
-                if let Some(return_expr) = return_expr {
-                    s.push_str(&format!(" {}", *return_expr));
-                }
-
-                write!(f, "{{{} }}", s)
-            }
-            Expression::IfExpression {
-                condition,
-                true_branch,
-                else_branch,
-            } => {
-                let mut else_str = String::new();
-                if let Some(else_branch) = else_branch {
-                    else_str.push_str(&format!(" else {}", *else_branch))
-                }
-
-                write!(f, "if ({}) {}{}", condition, true_branch, else_str)
-            }
+            Expression::LiteralExpression(e) => write!(f, "{e}"),
+            Expression::VariableExpression(e) => write!(f, "{e}"),
+            Expression::UnaryExpression(e) => write!(f, "{e}"),
+            Expression::BinaryExpression(e) => write!(f, "{e}"),
+            Expression::IfExpression(e) => write!(f, "{e}"),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
+pub struct Literal {
+    pub token: Token,
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.token.lexeme)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub token: Token,
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.token.lexeme)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Unary {
+    pub operator: Token,
+    pub operand: Box<Expression>,
+}
+
+impl fmt::Display for Unary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}{})", self.operator.lexeme, self.operand)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Binary {
+    pub left: Box<Expression>,
+    pub operator: Token,
+    pub right: Box<Expression>,
+}
+
+impl fmt::Display for Binary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({} {} {})", self.left, self.operator.lexeme, self.right)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct If {
+    pub condition: Box<Expression>,
+    pub true_branch: Box<Statement>,
+    pub else_branch: Option<Box<Statement>>,
+}
+
+impl fmt::Display for If {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut else_branch = String::new();
+        if let Some(branch) = &self.else_branch {
+            else_branch.push_str(&format!(" else {}", branch))
+        }
+        write!(
+            f,
+            "if ({}) {}{}",
+            self.condition, self.true_branch, else_branch
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Statement {
-    VariableDeclaration {
-        token: Token,
-        name: String,
-        value: Expression,
-    },
-    VariableAssignement {
-        token: Token,
-        name: String,
-        value: Expression,
-    },
+    VariableDeclaration(Declaration),
+    VariableAssignement(Assignement),
     ExpressionStatement(Expression),
-    WhileStatement {
-        condition: Box<Expression>,
-        block: Box<Expression>,
-    },
-    BreakStatement(Token),
-    ContinueStatement(Token),
+    BlockStatement(Block),
+    WhileStatement(While),
+    BreakStatement(Break),
+    ContinueStatement(Continue),
 }
 
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Statement::VariableDeclaration {
-                token: _,
-                name,
-                value,
-            } => write!(f, "set {} = {}", name, *value),
-            Statement::VariableAssignement {
-                token: _,
-                name,
-                value,
-            } => write!(f, "{} = {}", name, *value),
-            Statement::ExpressionStatement(expr) => write!(f, "{expr}"),
-            Statement::WhileStatement { condition, block } => {
-                write!(f, "while ({}) {}", condition, *block)
-            }
-            Statement::BreakStatement(_) => write!(f, "break"),
-            Statement::ContinueStatement(_) => write!(f, "continue"),
+            Statement::VariableDeclaration(s) => write!(f, "{s}"),
+            Statement::VariableAssignement(s) => write!(f, "{s}"),
+            Statement::ExpressionStatement(s) => write!(f, "{s}"),
+            Statement::BlockStatement(s) => write!(f, "{s}"),
+            Statement::WhileStatement(s) => write!(f, "{s}"),
+            Statement::BreakStatement(s) => write!(f, "{s}"),
+            Statement::ContinueStatement(s) => write!(f, "{s}"),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Block {
+    pub statements: Vec<Statement>,
+}
+
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        for statement in &self.statements {
+            s.push_str(&format!(" {};", *statement))
+        }
+        write!(f, "{{{s} }}")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Declaration {
+    pub name: Token,
+    pub value: Expression,
+}
+
+impl fmt::Display for Declaration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "set {} = {}", self.name.lexeme, self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Assignement {
+    pub name: Token,
+    pub value: Expression,
+}
+
+impl fmt::Display for Assignement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = {}", self.name.lexeme, self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct While {
+    pub condition: Expression,
+    pub block: Box<Statement>,
+}
+
+impl fmt::Display for While {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "while ({}) {}", self.condition, self.block)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Break {
+    pub token: Token,
+}
+
+impl fmt::Display for Break {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "break")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Continue {
+    pub token: Token,
+}
+
+impl fmt::Display for Continue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "continue")
     }
 }

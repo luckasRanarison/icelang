@@ -1,7 +1,14 @@
-use super::errors::LexicalError;
-use super::tokens::{Token, TokenType};
-use super::utils::*;
+pub mod errors;
+pub mod tokens;
+pub mod utils;
+
 use std::{iter::Peekable, str::Chars};
+
+use self::{
+    errors::LexicalError,
+    tokens::{Token, TokenType},
+    utils::*,
+};
 
 #[derive(Debug)]
 pub struct Lexer<'a> {
@@ -35,11 +42,16 @@ impl<'a> Lexer<'a> {
             }
 
             if ch.is_whitespace() {
-                self.current_pos.col_start = self.current_pos.col_end + 1;
-
                 if ch == '\n' {
+                    tokens.push(Token::new(
+                        TokenType::LineBreak,
+                        String::from("\n"),
+                        self.current_pos,
+                    ));
                     self.current_pos.line += 1;
                     self.current_pos.col_start = 1;
+                } else {
+                    self.current_pos.col_start = self.current_pos.col_end + 1;
                 }
 
                 continue;
@@ -103,10 +115,11 @@ impl<'a> Lexer<'a> {
         let token_type = match self.current_lexeme.as_str() {
             "+" => TokenType::Plus,
             "-" => TokenType::Minus,
+            "%" => TokenType::Modulo,
             "*" => TokenType::Asterix,
             "/" => TokenType::Slash,
-            "(" => TokenType::LeftParenthese,
-            ")" => TokenType::RighParenethese,
+            "(" => TokenType::LeftParenthesis,
+            ")" => TokenType::RighParenethesis,
             "{" => TokenType::LeftBrace,
             "}" => TokenType::RightBrace,
             "[" => TokenType::LeftBracket,
@@ -228,7 +241,6 @@ impl<'a> Lexer<'a> {
 
         let token_type = match self.current_lexeme.as_str() {
             "set" => TokenType::Set,
-            "freeze" => TokenType::Freeze,
             "true" => TokenType::True,
             "false" => TokenType::False,
             "null" => TokenType::Null,
@@ -246,7 +258,6 @@ impl<'a> Lexer<'a> {
             "continue" => TokenType::Continue,
             "function" => TokenType::Function,
             "return" => TokenType::Return,
-            "expose" => TokenType::Expose,
             "import" => TokenType::Import,
             "export" => TokenType::Export,
             _ => TokenType::Identifier(self.current_lexeme.clone()),
@@ -315,12 +326,12 @@ mod tests {
                     Position::new(1, 10, 14)
                 ),
                 Token::new(
-                    TokenType::LeftParenthese,
+                    TokenType::LeftParenthesis,
                     String::from("("),
                     Position::new(1, 15, 15)
                 ),
                 Token::new(
-                    TokenType::RighParenethese,
+                    TokenType::RighParenethesis,
                     String::from(")"),
                     Position::new(1, 16, 16)
                 ),
@@ -328,6 +339,11 @@ mod tests {
                     TokenType::LeftBrace,
                     String::from("{"),
                     Position::new(1, 18, 18)
+                ),
+                Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    Position::new(1, 19, 19)
                 ),
                 Token::new(
                     TokenType::Return,
@@ -343,6 +359,11 @@ mod tests {
                     TokenType::Semicolon,
                     String::from(";"),
                     Position::new(2, 25, 25)
+                ),
+                Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    Position::new(2, 26, 26)
                 ),
                 Token::new(
                     TokenType::RightBrace,

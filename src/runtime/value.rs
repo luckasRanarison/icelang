@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, Div, Mul, Rem, Sub},
 };
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -92,6 +92,17 @@ impl Add for Value {
             (Value::String(a), Value::Number(b)) => Some(Value::String(format!("{}{}", a, b))),
             (Value::Number(a), Value::String(b)) => Some(Value::String(format!("{}{}", a, b))),
             (Value::String(a), Value::String(b)) => Some(Value::String(format!("{}{}", a, b))),
+            _ => None,
+        }
+    }
+}
+
+impl Rem for Value {
+    type Output = Option<Value>;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Value::Number(a), Value::Number(b)) => Some(Value::Number(a % b)),
             _ => None,
         }
     }

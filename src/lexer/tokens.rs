@@ -4,12 +4,10 @@ use super::utils::Position;
 pub enum TokenType {
     Number(f64),
     String(String),
-    Boolean(bool),
 
     Identifier(String),
 
     Set,
-    Freeze,
     Null,
     True,
     False,
@@ -27,19 +25,19 @@ pub enum TokenType {
     Continue,
     Function,
     Return,
-    Expose,
     Import,
     Export,
 
     Plus,
     Minus,
+    Modulo,
     Asterix,
     Slash,
     Comma,
     Semicolon,
     Dot,
-    LeftParenthese,
-    RighParenethese,
+    LeftParenthesis,
+    RighParenethesis,
     LeftBrace,
     RightBrace,
     LeftBracket,
@@ -54,10 +52,27 @@ pub enum TokenType {
     Less,
     LessEqual,
 
+    LineBreak,
     Eof,
 }
 
 impl TokenType {
+    pub fn is_line_break(&self) -> bool {
+        matches!(self, Self::LineBreak)
+    }
+
+    pub fn is_skipable(&self) -> bool {
+        matches!(self, TokenType::LineBreak | TokenType::Semicolon)
+    }
+
+    pub fn is_and(&self) -> bool {
+        matches!(self, TokenType::And)
+    }
+
+    pub fn is_or(&self) -> bool {
+        matches!(self, TokenType::Or)
+    }
+
     pub fn is_eof(&self) -> bool {
         matches!(self, TokenType::Eof)
     }
@@ -66,8 +81,8 @@ impl TokenType {
         matches!(self, TokenType::EqualEqual | TokenType::BangEqual)
     }
 
-    pub fn is_plus_min(&self) -> bool {
-        matches!(self, TokenType::Plus | TokenType::Minus)
+    pub fn is_plus_min_mod(&self) -> bool {
+        matches!(self, TokenType::Plus | TokenType::Minus | TokenType::Modulo)
     }
 
     pub fn is_mutl_div(&self) -> bool {
@@ -75,7 +90,7 @@ impl TokenType {
     }
 
     pub fn is_binary_operator(&self) -> bool {
-        self.is_comparaison() || self.is_mutl_div() || self.is_plus_min()
+        self.is_comparaison() || self.is_mutl_div() || self.is_plus_min_mod()
     }
 
     pub fn is_unary(&self) -> bool {
@@ -103,6 +118,32 @@ impl TokenType {
             | TokenType::True
             | TokenType::False
             | TokenType::Null => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        match self {
+            TokenType::Set
+            | TokenType::Null
+            | TokenType::True
+            | TokenType::False
+            | TokenType::And
+            | TokenType::Or
+            | TokenType::If
+            | TokenType::Else
+            | TokenType::For
+            | TokenType::To
+            | TokenType::While
+            | TokenType::Loop
+            | TokenType::Foreach
+            | TokenType::In
+            | TokenType::Break
+            | TokenType::Continue
+            | TokenType::Function
+            | TokenType::Return
+            | TokenType::Import
+            | TokenType::Export => true,
             _ => false,
         }
     }
