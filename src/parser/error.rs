@@ -1,66 +1,28 @@
-use crate::tokenizer::tokens::Token;
-use std::fmt;
+use crate::lexer::tokens::Token;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ParsingError {
+    #[error("unexpected token '{}' at {}", .0.lexeme, .0.pos)]
     UnexpectedToken(Token),
+    #[error("unexpected end of input at {}", .0.pos)]
     UnexpedtedEndOfInput(Token),
+    #[error("missing closing parenthesis at '{}'", .0.pos)]
     MissingParenthesis(Token),
+    #[error("missing left operand for '{}' at '{}'", .0.lexeme, .0.pos)]
     MissingLeftOperand(Token),
+    #[error("missing right operand for '{}' at '{}'", .0.lexeme, .0.pos)]
     MissingRightOperand(Token),
+    #[error("missing variable initializer at '{}'", .0.pos)]
     MissingInitializer(Token),
+    #[error("missing semicolon ';' before '{}'", .0.pos)]
     MissingSemicolon(Token),
+    #[error("missing assignment '=' at '{}'", .0.pos)]
     MissingAssignment(Token),
-    MissingClosingBrace(Token),
-    ExpectedIdentifier(Token),
+    #[error("expected opening brace '{{' but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedLeftBrace(Token),
-}
-
-impl fmt::Display for ParsingError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ParsingError::UnexpectedToken(token) => write!(
-                f,
-                "unexpected token '{}' at line {} col {}",
-                token.lexeme, token.pos.line, token.pos.col_start,
-            ),
-            ParsingError::UnexpedtedEndOfInput(token) => write!(
-                f,
-                "unexpected end of input at line {} col {}",
-                token.pos.line, token.pos.col_end
-            ),
-            ParsingError::MissingParenthesis(token)
-            | ParsingError::MissingLeftOperand(token)
-            | ParsingError::MissingRightOperand(token)
-            | ParsingError::MissingInitializer(token)
-            | ParsingError::MissingSemicolon(token)
-            | ParsingError::MissingAssignment(token)
-            | ParsingError::MissingClosingBrace(token) => write!(
-                f,
-                "missing {} at line {} col {}",
-                match self {
-                    ParsingError::MissingParenthesis(_) => "closing ')'",
-                    ParsingError::MissingLeftOperand(_) => "left operand",
-                    ParsingError::MissingRightOperand(_) => "right operand",
-                    ParsingError::MissingInitializer(_) => "initializer",
-                    ParsingError::MissingSemicolon(_) => "semicolon ';'",
-                    ParsingError::MissingAssignment(_) => "assignment '='",
-                    ParsingError::MissingClosingBrace(_) => "closing brace for '{'",
-                    _ => unreachable!(),
-                },
-                token.pos.line,
-                token.pos.col_start,
-            ),
-            ParsingError::ExpectedIdentifier(token) => write!(
-                f,
-                "expected identifier but found '{}' at line {} col {}",
-                token.lexeme, token.pos.line, token.pos.col_start
-            ),
-            ParsingError::ExpectedLeftBrace(token) => write!(
-                f,
-                "expected left brace '{{' but found '{}' at line {} col {}",
-                token.lexeme, token.pos.line, token.pos.col_start
-            ),
-        }
-    }
+    #[error("missing closing brace '}}' at '{}'", .0.pos)]
+    MissingClosingBrace(Token),
+    #[error("expected identifer but got '{}' at {}", .0.lexeme, .0.pos)]
+    ExpectedIdentifier(Token),
 }

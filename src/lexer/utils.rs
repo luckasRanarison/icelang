@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Position {
     pub line: usize,
@@ -12,6 +14,18 @@ impl Position {
             col_start,
             col_end,
         }
+    }
+}
+
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let col = if self.col_start == self.col_end {
+            self.col_start.to_string()
+        } else {
+            format!("{}-{}", self.col_start, self.col_end)
+        };
+
+        write!(f, "line {} col {}", self.line, col)
     }
 }
 

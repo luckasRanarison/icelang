@@ -1,5 +1,5 @@
 use super::value::Value;
-use crate::tokenizer::{tokens::Token, utils::Position};
+use crate::lexer::{tokens::Token, utils::Position};
 use std::fmt;
 
 pub enum RuntimeError {

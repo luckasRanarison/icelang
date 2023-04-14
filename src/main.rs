@@ -1,9 +1,9 @@
 use std::{env, fs::read_to_string, io, process};
 
 use icelang::{
-    parser::{error::ParsingError, parser::Parser},
+    lexer::Lexer,
+    parser::{error::ParsingError, Parser},
     runtime::interpreter::Interpreter,
-    tokenizer::lexer::Lexer,
 };
 
 fn main() {
@@ -80,7 +80,7 @@ fn repl_mode() {
         }
 
         for node in nodes {
-            let value = interpreter.evaluate_statement(node);
+            let value = interpreter.interpret(node);
             match value {
                 Ok(value) => {
                     if let Some(value) = value {
