@@ -22,6 +22,8 @@ pub enum ParsingError {
     #[error("expected opening brace '{{' but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedLeftBrace(Token),
     #[error("missing closing brace '}}' at '{}'", .0.pos)]
+    MissingClosingBracket(Token),
+    #[error("missing closing bracket ']' at '{}'", .0.pos)]
     MissingClosingBrace(Token),
     #[error("expected identifer but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedIdentifier(Token),

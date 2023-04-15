@@ -8,8 +8,8 @@ use super::{
 use crate::{
     lexer::tokens::TokenType,
     parser::ast::{
-        Assignement, Binary, Block, Break, Continue, Declaration, Expression, If, Literal, Loop,
-        Match, Statement, Unary, Variable, While,
+        Array, Assignement, Binary, Block, Break, Continue, Declaration, Expression, If, Index,
+        Literal, Loop, Match, Statement, Unary, Variable, While,
     },
 };
 
@@ -35,6 +35,7 @@ fn is_truthy(value: &Value) -> bool {
         Value::Boolean(value) => *value,
         Value::Null => false,
         Value::String(value) => value.len() != 0,
+        Value::Array(value) => !value.is_empty(),
     }
 }
 
@@ -192,6 +193,8 @@ impl EvalExpr for Expression {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         match self {
             Expression::LiteralExpression(expr) => expr.evaluate_expression(env),
+            Expression::ArrayExpression(expr) => expr.evaluate_expression(env),
+            Expression::IndexExpression(expr) => expr.evaluate_expression(env),
             Expression::VariableExpression(expr) => expr.evaluate_expression(env),
             Expression::UnaryExpression(expr) => expr.evaluate_expression(env),
             Expression::BinaryExpression(expr) => expr.evaluate_expression(env),
@@ -225,6 +228,55 @@ impl EvalExpr for Variable {
         } else {
             Err(RuntimeError::UndefinedVariable(self.token.clone()))
         }
+    }
+}
+
+impl EvalExpr for Array {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let mut array: Vec<Value> = vec![];
+
+        for item in &self.items {
+            array.push(item.evaluate_expression(env)?);
+        }
+
+        Ok(Value::Array(array))
+    }
+}
+
+impl EvalExpr for Index {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let expression = self.expression.evaluate_expression(env)?;
+        let index_expression = self.index.evaluate_expression(env)?;
+
+        let index = match index_expression {
+            Value::Number(index) => {
+                if index < 0.0 {
+                    return Err(RuntimeError::InvalidIndex);
+                }
+                index as usize
+            }
+            _ => return Err(RuntimeError::InvalidIndex),
+        };
+
+        let value = match expression {
+            Value::Array(array) => {
+                if let Some(value) = array.get(index) {
+                    value.clone()
+                } else {
+                    Value::Null
+                }
+            }
+            Value::String(string) => {
+                if let Some(value) = string.chars().nth(index) {
+                    Value::String(value.to_string())
+                } else {
+                    Value::Null
+                }
+            }
+            _ => return Err(RuntimeError::UnindexabeType),
+        };
+
+        Ok(value)
     }
 }
 
@@ -521,5 +573,28 @@ mod test {
         let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
 
         assert_eq!(get("b"), Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_array() {
+        let source = "
+            set a = [1, 'hi', true];
+            set b = a[0];
+            set c = a[1];
+            set d = a[2];
+            set e = a[3];
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("b"), Value::Number(1.0));
+        assert_eq!(get("c"), Value::String("hi".to_owned()));
+        assert_eq!(get("d"), Value::Boolean(true));
+        assert_eq!(get("e"), Value::Null);
     }
 }

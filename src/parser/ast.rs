@@ -6,6 +6,8 @@ use crate::lexer::tokens::Token;
 pub enum Expression {
     LiteralExpression(Literal),
     VariableExpression(Variable),
+    ArrayExpression(Array),
+    IndexExpression(Index),
     UnaryExpression(Unary),
     BinaryExpression(Binary),
     IfExpression(If),
@@ -21,6 +23,8 @@ impl fmt::Display for Expression {
             Expression::BinaryExpression(e) => write!(f, "{e}"),
             Expression::IfExpression(e) => write!(f, "{e}"),
             Expression::MatchExpression(e) => write!(f, "{e}"),
+            Expression::ArrayExpression(e) => write!(f, "{e}"),
+            Expression::IndexExpression(e) => write!(f, "{e}"),
         }
     }
 }
@@ -33,6 +37,37 @@ pub struct Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.token.lexeme)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Array {
+    pub items: Vec<Expression>,
+}
+
+impl fmt::Display for Array {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        let mut iter = self.items.iter();
+        if let Some(item) = iter.next() {
+            s.push_str(&format!("{}", item));
+            for item in iter {
+                s.push_str(&format!(", {}", item));
+            }
+        }
+        write!(f, "[{}]", s)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Index {
+    pub expression: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
+impl fmt::Display for Index {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}[{}]", self.expression, self.index)
     }
 }
 

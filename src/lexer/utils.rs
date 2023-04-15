@@ -30,7 +30,7 @@ impl fmt::Display for Position {
 }
 
 pub fn is_standard_symbol(ch: char) -> bool {
-    let symbols = "+-%*/(){}.,;:!<>=";
+    let symbols = "+-%*/(){}[].,;:!<>=";
     symbols.contains(ch)
 }
 

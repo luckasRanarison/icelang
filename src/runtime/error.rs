@@ -14,6 +14,10 @@ pub enum RuntimeError {
     RedeclaringVariable(Token),
     #[error("{0}")]
     ControlFlow(ControlFlow),
+    #[error("only array and string can be indexed")]
+    UnindexabeType,
+    #[error("only positive number can be used to index array")]
+    InvalidIndex,
 }
 
 #[derive(Debug, Error)]

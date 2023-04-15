@@ -3,7 +3,7 @@ pub mod error;
 
 use self::{ast::*, error::ParsingError};
 use crate::lexer::tokens::{Token, TokenType};
-use std::{iter::Peekable, slice::Iter};
+use std::{iter::Peekable, slice::Iter, vec};
 
 pub struct Parser<'a> {
     pub tokens: Peekable<Iter<'a, Token>>,
@@ -311,11 +311,12 @@ impl<'a> Parser<'a> {
 
     fn parse_primary(&mut self) -> Result<Expression, ParsingError> {
         let token = self.clone_token();
-        let expression = match &self.current_token.value {
+        let mut expression = match &self.current_token.value {
             TokenType::Eof => return Err(ParsingError::UnexpedtedEndOfInput(token)),
             TokenType::If => return self.parse_if(),
             TokenType::Match => return self.parse_match(),
             TokenType::LeftParenthesis => self.parse_group()?,
+            TokenType::LeftBracket => self.parse_array()?,
             TokenType::Identifier(_) => {
                 let next_token = self.peek();
                 if next_token.value.is_literal() || next_token.value.is_identifier() {
@@ -339,6 +340,13 @@ impl<'a> Parser<'a> {
         };
         self.advance();
 
+        loop {
+            expression = match self.current_token.value {
+                TokenType::LeftBracket => self.parse_index(expression)?,
+                _ => break,
+            }
+        }
+
         Ok(expression)
     }
 
@@ -351,6 +359,41 @@ impl<'a> Parser<'a> {
         }
 
         Ok(expression)
+    }
+
+    fn parse_array(&mut self) -> Result<Expression, ParsingError> {
+        self.advance();
+        let mut items: Vec<Expression> = vec![];
+
+        while self.current_token.value != TokenType::RightBracket {
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
+            }
+
+            items.push(self.parse_expression()?);
+
+            if self.current_token.value == TokenType::Comma {
+                self.advance();
+            }
+        }
+        let array_expression = Expression::ArrayExpression(Array { items });
+
+        Ok(array_expression)
+    }
+
+    fn parse_index(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
+        self.advance();
+        let index = self.parse_expression()?;
+
+        if self.current_token.value != TokenType::RightBracket {
+            return Err(ParsingError::MissingClosingBracket(self.clone_token()));
+        }
+        self.advance();
+
+        Ok(Expression::IndexExpression(Index {
+            expression: Box::new(expression),
+            index: Box::new(index),
+        }))
     }
 
     fn parse_if(&mut self) -> Result<Expression, ParsingError> {
@@ -605,6 +648,18 @@ mod test {
         let tokens = Lexer::new(stmt).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.get(1).unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_array_index() {
+        let stmt = "
+            !array[2][3] / [1, 2, 3][0]
+        ";
+        let expected = "((!array[2][3]) / [1, 2, 3][0])";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
         assert_eq!(node.to_string(), expected);
     }
 }

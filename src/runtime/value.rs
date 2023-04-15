@@ -9,6 +9,7 @@ pub enum Value {
     String(String),
     Boolean(bool),
     Null,
+    Array(Vec<Value>),
 }
 
 impl Value {
@@ -18,6 +19,7 @@ impl Value {
             Value::String(_) => "string",
             Value::Boolean(_) => "boolean",
             Value::Null => "null",
+            Value::Array(_) => "array",
         };
 
         value_type.to_string()
@@ -46,6 +48,17 @@ impl fmt::Display for Value {
             Value::String(value) => write!(f, "\"{value}\""),
             Value::Boolean(value) => write!(f, "{:?}", value),
             Value::Null => write!(f, "null"),
+            Value::Array(items) => {
+                let mut s = String::new();
+                let mut iter = items.iter();
+                if let Some(item) = iter.next() {
+                    s.push_str(&format!("{}", item));
+                    for item in iter {
+                        s.push_str(&format!(", {}", item));
+                    }
+                }
+                write!(f, "[{}]", s)
+            }
         }
     }
 }
