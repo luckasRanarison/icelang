@@ -402,12 +402,8 @@ impl<'a> Parser<'a> {
                 return Err(ParsingError::MissingClosingBrace(self.clone_token()));
             }
 
-            if let TokenType::Identifier(ident) = &self.current_token.value {
-                if ident == "_" {
-                    default = Some(self.parse_match_arm()?);
-                } else {
-                    arms.push(self.parse_match_arm()?);
-                }
+            if self.current_token.lexeme == "_" {
+                default = Some(self.parse_match_arm()?);
             } else {
                 arms.push(self.parse_match_arm()?);
             }
@@ -431,30 +427,22 @@ impl<'a> Parser<'a> {
     fn parse_match_arm(&mut self) -> Result<MatchArm, ParsingError> {
         let mut pattern: Vec<Box<Expression>> = vec![];
         loop {
-            let token = self.clone_token();
             let expr = match &self.current_token.value {
                 TokenType::Colon => break,
-                TokenType::Eof => return Err(ParsingError::UnexpedtedEndOfInput(token)),
+                TokenType::Eof => {
+                    return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()))
+                }
                 TokenType::Comma => {
                     self.advance();
                     continue;
                 }
-                TokenType::Identifier(ident) => {
-                    if ident == "_" {
-                        self.advance();
-
-                        if self.current_token.value != TokenType::Colon {
-                            return Err(ParsingError::UnexpectedToken(self.clone_token()));
-                        }
-
-                        Box::new(Expression::LiteralExpression(Literal {
-                            token: token.clone(),
-                        }))
-                    } else {
-                        Box::new(self.parse_expression()?)
+                _ => {
+                    if self.current_token.lexeme == "_" && self.peek().value != TokenType::Colon {
+                        return Err(ParsingError::UnexpectedToken(self.peek().clone()));
                     }
+
+                    Box::new(self.parse_expression()?)
                 }
-                _ => Box::new(self.parse_expression()?),
             };
 
             pattern.push(expr);
