@@ -31,4 +31,6 @@ pub enum ParsingError {
     MissingArmExpression(Token),
     #[error("missing comma ',' at line '{}'", .0.pos)]
     MissingComma(Token),
+    #[error("invalid assignment target at line {}", .0.pos)]
+    InvalidAssignment(Token),
 }

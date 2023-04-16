@@ -33,17 +33,23 @@ impl Environment {
             None
         }
     }
-
     pub fn set(&mut self, name: &str, value: Value) {
         self.values.insert(name.to_owned(), value);
     }
 
-    pub fn assign(&mut self, name: &str, value: Value) -> bool {
+    pub fn assign(&mut self, name: &str, value: Value) {
         if self.values.contains_key(name) {
             self.set(name, value);
-            true
         } else if let Some(parent) = &self.parent {
             parent.borrow_mut().assign(name, value)
+        }
+    }
+
+    pub fn global_contains(&self, name: &str) -> bool {
+        if self.values.contains_key(name) {
+            true
+        } else if let Some(parent) = &self.parent {
+            parent.borrow().global_contains(name)
         } else {
             false
         }

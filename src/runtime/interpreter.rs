@@ -5,13 +5,7 @@ use super::{
     error::{ControlFlow, RuntimeError},
     value::Value,
 };
-use crate::{
-    lexer::tokens::TokenType,
-    parser::ast::{
-        Array, Assignement, Binary, Block, Break, Continue, Declaration, Expression, If, Index,
-        Literal, Loop, Match, Statement, Unary, Variable, While,
-    },
-};
+use crate::{lexer::tokens::TokenType, parser::ast::*};
 
 pub struct Interpreter {
     environment: RefEnv,
@@ -64,7 +58,6 @@ impl EvalStmt for Statement {
         match self {
             Statement::ExpressionStatement(stmt) => stmt.evaluate(env),
             Statement::VariableDeclaration(stmt) => stmt.evaluate(env),
-            Statement::VariableAssignement(stmt) => stmt.evaluate(env),
             Statement::BlockStatement(stmt) => stmt.evaluate(env),
             Statement::WhileStatement(stmt) => stmt.evaluate(env),
             Statement::LoopStatement(stmt) => stmt.evaluate(env),
@@ -86,19 +79,6 @@ impl Eval for Declaration {
         env.borrow_mut().set(&name, value);
 
         Ok(None)
-    }
-}
-
-impl Eval for Assignement {
-    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        let name = &self.name.lexeme;
-        let value = self.value.evaluate_expression(env)?;
-
-        if env.borrow_mut().assign(name, value) {
-            Ok(None)
-        } else {
-            Err(RuntimeError::UndefinedVariable(self.name.clone()))
-        }
     }
 }
 
@@ -193,6 +173,7 @@ impl EvalExpr for Expression {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         match self {
             Expression::LiteralExpression(expr) => expr.evaluate_expression(env),
+            Expression::AssignementExpression(expr) => expr.evaluate_expression(env),
             Expression::ArrayExpression(expr) => expr.evaluate_expression(env),
             Expression::IndexExpression(expr) => expr.evaluate_expression(env),
             Expression::VariableExpression(expr) => expr.evaluate_expression(env),
@@ -228,6 +209,24 @@ impl EvalExpr for Variable {
         } else {
             Err(RuntimeError::UndefinedVariable(self.token.clone()))
         }
+    }
+}
+
+impl EvalExpr for Assign {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let expression_value = self.value.evaluate_expression(env)?;
+
+        if let Expression::VariableExpression(variable) = &*self.left {
+            let name = &variable.token.lexeme;
+
+            if !env.borrow().global_contains(&name) {
+                return Err(RuntimeError::UndefinedVariable(variable.token.clone()));
+            }
+
+            env.borrow_mut().assign(name, expression_value.clone());
+        }
+
+        Ok(expression_value)
     }
 }
 
@@ -273,7 +272,7 @@ impl EvalExpr for Index {
                     Value::Null
                 }
             }
-            _ => return Err(RuntimeError::UnindexabeType),
+            _ => return Err(RuntimeError::UnindexableType),
         };
 
         Ok(value)
@@ -596,5 +595,30 @@ mod test {
         assert_eq!(get("c"), Value::String("hi".to_owned()));
         assert_eq!(get("d"), Value::Boolean(true));
         assert_eq!(get("e"), Value::Null);
+    }
+
+    #[test]
+    fn test_array_index_assignment() {
+        let source = "
+            set a = [1, 2, [0, 1]];
+            a[4] = 2;
+            a[2][2] = 2
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        if let Value::Array(array) = get("a") {
+            assert_eq!(array[4], Value::Number(2.0));
+            assert_eq!(array[3], Value::Null);
+
+            if let Value::Array(child_array) = &array[2] {
+                assert_eq!(child_array[2], Value::Number(2.0))
+            }
+        }
     }
 }

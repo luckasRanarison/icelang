@@ -79,6 +79,10 @@ impl TokenType {
         matches!(self, TokenType::Eof)
     }
 
+    pub fn is_assignment(&self) -> bool {
+        matches!(self, TokenType::Equal)
+    }
+
     pub fn is_equality(&self) -> bool {
         matches!(self, TokenType::EqualEqual | TokenType::BangEqual)
     }

@@ -48,7 +48,6 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Result<Statement, ParsingError> {
         let statement = match self.current_token.value {
             TokenType::Set => self.parse_variable_declaration()?,
-            TokenType::Identifier(_) => self.parse_assignement()?,
             TokenType::LeftBrace => self.parse_block()?,
             TokenType::While => self.parse_while()?,
             TokenType::Loop => self.parse_loop()?,
@@ -77,22 +76,6 @@ impl<'a> Parser<'a> {
         let declaration = Statement::VariableDeclaration(Declaration { name, value });
 
         Ok(declaration)
-    }
-
-    fn parse_assignement(&mut self) -> Result<Statement, ParsingError> {
-        let next_type = &self.peek().value;
-        if *next_type != TokenType::Equal {
-            let expr = self.parse_expression()?;
-            return Ok(Statement::ExpressionStatement(expr));
-        }
-
-        let name = self.clone_token();
-        self.advance();
-        self.advance();
-        let value = self.parse_expression()?;
-        let assignement = Statement::VariableAssignement(Assignement { name, value });
-
-        Ok(assignement)
     }
 
     fn parse_block(&mut self) -> Result<Statement, ParsingError> {
@@ -156,7 +139,29 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParsingError> {
-        Ok(self.parse_or()?)
+        Ok(self.parse_assignment()?)
+    }
+
+    fn parse_assignment(&mut self) -> Result<Expression, ParsingError> {
+        let expression = self.parse_or()?;
+
+        if self.current_token.value.is_assignment() {
+            let token = self.clone_token();
+            self.advance();
+            let value = self.parse_assignment()?;
+
+            if let Expression::VariableExpression(_) | Expression::IndexExpression(_) = expression {
+                let assignment = Expression::AssignementExpression(Assign {
+                    left: Box::new(expression),
+                    value: Box::new(value),
+                });
+                return Ok(assignment);
+            }
+
+            return Err(ParsingError::InvalidAssignment(token));
+        }
+
+        Ok(expression)
     }
 
     fn parse_or(&mut self) -> Result<Expression, ParsingError> {

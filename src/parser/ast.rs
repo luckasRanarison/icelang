@@ -6,6 +6,7 @@ use crate::lexer::tokens::Token;
 pub enum Expression {
     LiteralExpression(Literal),
     VariableExpression(Variable),
+    AssignementExpression(Assign),
     ArrayExpression(Array),
     IndexExpression(Index),
     UnaryExpression(Unary),
@@ -25,6 +26,7 @@ impl fmt::Display for Expression {
             Expression::MatchExpression(e) => write!(f, "{e}"),
             Expression::ArrayExpression(e) => write!(f, "{e}"),
             Expression::IndexExpression(e) => write!(f, "{e}"),
+            Expression::AssignementExpression(e) => write!(f, "{e}"),
         }
     }
 }
@@ -37,6 +39,18 @@ pub struct Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.token.lexeme)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Assign {
+    pub left: Box<Expression>,
+    pub value: Box<Expression>,
+}
+
+impl fmt::Display for Assign {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = {}", self.left, self.value)
     }
 }
 
@@ -171,7 +185,6 @@ impl fmt::Display for Match {
 #[derive(Debug, Clone)]
 pub enum Statement {
     VariableDeclaration(Declaration),
-    VariableAssignement(Assignement),
     ExpressionStatement(Expression),
     BlockStatement(Block),
     WhileStatement(While),
@@ -184,7 +197,6 @@ impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Statement::VariableDeclaration(s) => write!(f, "{s}"),
-            Statement::VariableAssignement(s) => write!(f, "{s}"),
             Statement::ExpressionStatement(s) => write!(f, "{s}"),
             Statement::BlockStatement(s) => write!(f, "{s}"),
             Statement::WhileStatement(s) => write!(f, "{s}"),
@@ -219,18 +231,6 @@ pub struct Declaration {
 impl fmt::Display for Declaration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "set {} = {}", self.name.lexeme, self.value)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Assignement {
-    pub name: Token,
-    pub value: Expression,
-}
-
-impl fmt::Display for Assignement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = {}", self.name.lexeme, self.value)
     }
 }
 
