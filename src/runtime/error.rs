@@ -14,12 +14,12 @@ pub enum RuntimeError {
     RedeclaringIdentifier(Token),
     #[error("{0}")]
     ControlFlow(ControlFlow),
-    #[error("only array and string can be indexed")]
-    UnindexableType,
-    #[error("only positive number can be used to index array")]
-    InvalidIndex,
-    #[error("not a funciton")]
-    NotFunciton,
+    #[error("trying to index an unindexable object at {}", .0.pos)]
+    UnindexableType(Token),
+    #[error("invalid index value at {}", .0.pos)]
+    InvalidIndex(Token),
+    #[error("trying to call a non function expression at {}", .0.pos)]
+    NotFunciton(Token),
     #[error("expected {0} argument but got {1}")]
     InvalidArgument(usize, usize),
 }

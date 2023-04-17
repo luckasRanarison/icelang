@@ -25,6 +25,7 @@ pub enum TokenType {
     Break,
     Continue,
     Function,
+    Lambda,
     Return,
     Import,
     Export,

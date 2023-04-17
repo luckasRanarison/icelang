@@ -259,6 +259,7 @@ impl<'a> Lexer<'a> {
             "break" => TokenType::Break,
             "continue" => TokenType::Continue,
             "function" => TokenType::Function,
+            "lambda" => TokenType::Lambda,
             "return" => TokenType::Return,
             "import" => TokenType::Import,
             "export" => TokenType::Export,

@@ -39,7 +39,11 @@ impl<'a> Parser<'a> {
         let mut nodes: Vec<Statement> = Vec::new();
 
         while !self.current_token.value.is_eof() {
-            nodes.push(self.parse_statement()?);
+            let statement = self.parse_statement()?;
+            match &statement {
+                Statement::FunctionDeclaration(_) => nodes.insert(0, statement),
+                _ => nodes.push(statement),
+            }
         }
 
         Ok(nodes)
@@ -84,11 +88,14 @@ impl<'a> Parser<'a> {
         self.advance();
         let mut statements: Vec<Statement> = vec![];
         while self.current_token.value != TokenType::RightBrace {
-            match self.current_token.value {
-                TokenType::Eof => {
-                    return Err(ParsingError::MissingClosingBrace(self.clone_token()))
-                }
-                _ => statements.push(self.parse_statement()?),
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::MissingClosingBrace(self.clone_token()));
+            }
+
+            let statement = self.parse_statement()?;
+            match &statement {
+                Statement::FunctionDeclaration(_) => statements.insert(0, statement),
+                _ => statements.push(statement),
             }
         }
         let statement = Statement::BlockStatement(Block { statements });
@@ -142,38 +149,14 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> Result<Statement, ParsingError> {
         self.advance();
-        let token = self.clone_token();
+        let token = Some(self.clone_token());
 
         if !self.current_token.value.is_identifier() {
             return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
         }
 
-        self.advance();
-        if self.current_token.value != TokenType::LeftParenthesis {
-            return Err(ParsingError::ExpectedLeftParenthesis(self.clone_token()));
-        }
-        self.advance();
+        let parameter = self.get_function_param()?;
 
-        let mut parameter: Vec<Token> = vec![];
-
-        while self.current_token.value != TokenType::RighParenethesis {
-            if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingParenthesis(self.clone_token()));
-            }
-
-            if !self.current_token.value.is_identifier() {
-                return Err(ParsingError::ExpectedParameter(self.clone_token()));
-            }
-
-            parameter.push(self.clone_token());
-            self.advance();
-
-            if self.current_token.value == TokenType::Comma {
-                self.advance();
-            }
-        }
-
-        self.advance();
         if self.current_token.value != TokenType::LeftBrace {
             return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
         }
@@ -375,10 +358,11 @@ impl<'a> Parser<'a> {
 
     fn parse_primary(&mut self) -> Result<Expression, ParsingError> {
         let token = self.clone_token();
-        let mut expression = match &self.current_token.value {
+        let mut expression = match token.value {
             TokenType::Eof => return Err(ParsingError::UnexpedtedEndOfInput(token)),
-            TokenType::If => return self.parse_if(),
-            TokenType::Match => return self.parse_match(),
+            TokenType::If => self.parse_if()?,
+            TokenType::Match => self.parse_match()?,
+            TokenType::Lambda => self.parse_lambda()?,
             TokenType::LeftParenthesis => self.parse_group()?,
             TokenType::LeftBracket => self.parse_array()?,
             TokenType::Identifier(_) => {
@@ -386,7 +370,9 @@ impl<'a> Parser<'a> {
                 if next_token.value.is_literal() || next_token.value.is_identifier() {
                     return Err(ParsingError::UnexpectedToken(next_token.clone()));
                 }
-                Expression::VariableExpression(Variable { token })
+                Expression::VariableExpression(Variable {
+                    token: token.clone(),
+                })
             }
             _ => {
                 if self.current_token.value.is_literal() {
@@ -394,7 +380,9 @@ impl<'a> Parser<'a> {
                     if next_token.value.is_literal() || next_token.value.is_identifier() {
                         return Err(ParsingError::UnexpectedToken(next_token.clone()));
                     }
-                    Expression::LiteralExpression(Literal { token })
+                    Expression::LiteralExpression(Literal {
+                        token: token.clone(),
+                    })
                 } else if self.current_token.value.is_binary_operator() {
                     return Err(ParsingError::MissingLeftOperand(token));
                 } else {
@@ -402,7 +390,14 @@ impl<'a> Parser<'a> {
                 }
             }
         };
-        self.advance();
+        let has_block = matches!(
+            &token.value,
+            TokenType::If | TokenType::Match | TokenType::Lambda
+        );
+
+        if !has_block {
+            self.advance();
+        }
 
         loop {
             expression = match self.current_token.value {
@@ -447,18 +442,22 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_index(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
+        let token = self.clone_token();
         self.advance();
-        let index = self.parse_expression()?;
+        let index = Box::new(self.parse_expression()?);
 
         if self.current_token.value != TokenType::RightBracket {
             return Err(ParsingError::MissingClosingBracket(self.clone_token()));
         }
-        self.advance();
 
-        Ok(Expression::IndexExpression(Index {
+        self.advance();
+        let index_expression = Expression::IndexExpression(Index {
+            token,
             expression: Box::new(expression),
-            index: Box::new(index),
-        }))
+            index,
+        });
+
+        Ok(index_expression)
     }
 
     fn parse_if(&mut self) -> Result<Expression, ParsingError> {
@@ -568,6 +567,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
+        let token = self.clone_token();
         self.advance();
         let mut arguments: Vec<Expression> = vec![];
 
@@ -584,11 +584,50 @@ impl<'a> Parser<'a> {
         }
         self.advance();
         let call = Expression::FunctionCall(Call {
+            token,
             caller: Box::new(expression),
             arguments,
         });
 
         Ok(call)
+    }
+
+    fn parse_lambda(&mut self) -> Result<Expression, ParsingError> {
+        let parameter = self.get_function_param()?;
+        let body = Box::new(self.parse_statement()?);
+        let lambda = Expression::LambdaFunction(Lambda { parameter, body });
+
+        Ok(lambda)
+    }
+
+    fn get_function_param(&mut self) -> Result<Vec<Token>, ParsingError> {
+        self.advance();
+        if self.current_token.value != TokenType::LeftParenthesis {
+            return Err(ParsingError::ExpectedLeftParenthesis(self.clone_token()));
+        }
+        self.advance();
+
+        let mut parameter: Vec<Token> = vec![];
+
+        while self.current_token.value != TokenType::RighParenethesis {
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::MissingParenthesis(self.clone_token()));
+            }
+
+            if !self.current_token.value.is_identifier() {
+                return Err(ParsingError::ExpectedParameter(self.clone_token()));
+            }
+
+            parameter.push(self.clone_token());
+            self.advance();
+
+            if self.current_token.value == TokenType::Comma {
+                self.advance();
+            }
+        }
+
+        self.advance();
+        Ok(parameter)
     }
 }
 
@@ -773,6 +812,20 @@ mod test {
             f(true, 2 * 3 + 1, [1, 2])
         ";
         let expected = "f(true, ((2 * 3) + 1), [1, 2])";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_lambda() {
+        let stmt = "
+            set hello = lambda() {
+                'Hello World'
+            }
+        ";
+        let expected = "set hello = lambda() { 'Hello World'; }";
         let tokens = Lexer::new(stmt).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();

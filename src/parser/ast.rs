@@ -14,6 +14,7 @@ pub enum Expression {
     IfExpression(If),
     MatchExpression(Match),
     FunctionCall(Call),
+    LambdaFunction(Lambda),
 }
 
 impl fmt::Display for Expression {
@@ -29,6 +30,7 @@ impl fmt::Display for Expression {
             Expression::IndexExpression(e) => write!(f, "{e}"),
             Expression::AssignementExpression(e) => write!(f, "{e}"),
             Expression::FunctionCall(e) => write!(f, "{e}"),
+            Expression::LambdaFunction(e) => write!(f, "{e}"),
         }
     }
 }
@@ -77,6 +79,7 @@ impl fmt::Display for Array {
 
 #[derive(Debug, Clone)]
 pub struct Index {
+    pub token: Token,
     pub expression: Box<Expression>,
     pub index: Box<Expression>,
 }
@@ -186,6 +189,7 @@ impl fmt::Display for Match {
 
 #[derive(Debug, Clone)]
 pub struct Call {
+    pub token: Token,
     pub caller: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
@@ -201,6 +205,26 @@ impl fmt::Display for Call {
             }
         }
         write!(f, "{}({})", self.caller, s)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Lambda {
+    pub parameter: Vec<Token>,
+    pub body: Box<Statement>,
+}
+
+impl fmt::Display for Lambda {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        let mut iter = self.parameter.iter();
+        if let Some(param) = iter.next() {
+            s.push_str(&format!("{}", param.lexeme));
+            for param in iter {
+                s.push_str(&format!(", {}", param.lexeme));
+            }
+        }
+        write!(f, "lambda({}) {}", s, self.body)
     }
 }
 
@@ -307,7 +331,7 @@ impl fmt::Display for Continue {
 
 #[derive(Debug, Clone)]
 pub struct FunctionDeclaration {
-    pub token: Token,
+    pub token: Option<Token>,
     pub parameter: Vec<Token>,
     pub body: Box<Statement>,
 }
@@ -322,7 +346,11 @@ impl fmt::Display for FunctionDeclaration {
                 s.push_str(&format!(", {}", param.lexeme));
             }
         }
-        write!(f, "function {}({}) {}", self.token.lexeme, s, self.body)
+        let name = match &self.token {
+            Some(token) => &token.lexeme,
+            None => "",
+        };
+        write!(f, "function {}({}) {}", name, s, self.body)
     }
 }
 

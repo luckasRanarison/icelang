@@ -81,7 +81,11 @@ impl fmt::Display for Value {
                 write!(f, "[{}]", s)
             }
             Value::Function(function) => {
-                write!(f, "[Function {}]", function.declaration.token.lexeme)
+                let name = match &function.declaration.token {
+                    Some(token) => &token.lexeme,
+                    None => "anonymous",
+                };
+                write!(f, "[Function {}]", name)
             }
         }
     }

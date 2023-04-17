@@ -170,10 +170,12 @@ impl Eval for Continue {
 
 impl Eval for FunctionDeclaration {
     fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        let name = &self.token.lexeme;
+        let name = &self.token.as_ref().unwrap().lexeme;
 
         if env.borrow().contains(name) {
-            return Err(RuntimeError::RedeclaringIdentifier(self.token.clone()));
+            return Err(RuntimeError::RedeclaringIdentifier(
+                self.token.as_ref().unwrap().clone(),
+            ));
         }
 
         env.borrow_mut().set(
@@ -214,6 +216,7 @@ impl EvalExpr for Expression {
             Expression::IfExpression(expr) => expr.evaluate_expression(env),
             Expression::MatchExpression(expr) => expr.evaluate_expression(env),
             Expression::FunctionCall(expr) => expr.evaluate_expression(env),
+            Expression::LambdaFunction(expr) => expr.evaluate_expression(env),
         }
     }
 }
@@ -283,11 +286,11 @@ impl EvalExpr for Index {
         let index = match index_expression {
             Value::Number(index) => {
                 if index < 0.0 {
-                    return Err(RuntimeError::InvalidIndex);
+                    return Err(RuntimeError::InvalidIndex(self.token.clone()));
                 }
                 index as usize
             }
-            _ => return Err(RuntimeError::InvalidIndex),
+            _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
         };
 
         let value = match expression {
@@ -305,7 +308,7 @@ impl EvalExpr for Index {
                     Value::Null
                 }
             }
-            _ => return Err(RuntimeError::UnindexableType),
+            _ => return Err(RuntimeError::UnindexableType(self.token.clone())),
         };
 
         Ok(value)
@@ -435,6 +438,20 @@ impl EvalExpr for Match {
     }
 }
 
+impl EvalExpr for Lambda {
+    fn evaluate_expression(&self, _env: &RefEnv) -> Result<Value, RuntimeError> {
+        let lambda = Value::Function(Function {
+            declaration: FunctionDeclaration {
+                token: None,
+                parameter: self.parameter.clone(),
+                body: self.body.clone(),
+            },
+        });
+
+        Ok(lambda)
+    }
+}
+
 impl EvalExpr for Call {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         let value = self.caller.evaluate_expression(env)?;
@@ -471,7 +488,7 @@ impl EvalExpr for Call {
                 None => Ok(Value::Null),
             }
         } else {
-            return Err(RuntimeError::NotFunciton);
+            return Err(RuntimeError::NotFunciton(self.token.clone()));
         }
     }
 }
@@ -707,5 +724,25 @@ mod test {
         assert_eq!(get("a"), Value::String("Hello World".to_owned()));
         assert_eq!(get("b"), Value::String("Hello Luckas".to_owned()));
         assert_eq!(get("c"), Value::Number(0.0));
+    }
+
+    #[test]
+    fn test_lambda() {
+        let source = "
+            set a = (lambda() 'hi')()
+            set b = lambda() {
+                [1, lambda() { 'here' }, 3, 4]
+            }()[1]()
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("a"), Value::String("hi".to_owned()));
+        assert_eq!(get("b"), Value::String("here".to_owned()));
     }
 }
