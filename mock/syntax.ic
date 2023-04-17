@@ -12,12 +12,9 @@
     comment 
 -->
 
--- module system
-expose "module_name"; -- expose all exported module variables, functions 
-
 set default_import = import("module_name"); -- default import
-set component = import("module_name.component"); -- import a specific module component
-set component_with_path = import("../module_name.component"); -- unix like path
+set component = import("module_name").prop; -- import a specific object prop
+set component_with_path = import("../module_name"); -- unix like path
 
 -- data types 
 set string = "Hello World";
@@ -26,12 +23,23 @@ set float = 1.2;
 set boolean = true;
 set array = [1, 2, 3, 4];
 set undefined; -- null
+set object = {
+    prop: "value",
+    another: 1,
+    method: lambda(self) {
+        print(self.prop);
+    } 
+}
 
--- constant
-freeze constant = "constant value"; 
+object.method() -- "value"
 
 -- function
 function hello(name) {
+    print("Hello " + name);
+}
+
+-- lambda function
+set lambda_function = lambda(name) {
     print("Hello " + name);
 }
 
@@ -87,23 +95,17 @@ if (cond_1 and cond_2) {
 set a = 1;
 
 match(a) {
-    1: a = a + 2;
+    1: a = a + 2,
     2: {
         print("unreachable");    
-    }
+    },
     _: {
         print("Default");
-    }
+    },
 }
 
 -- module export
 set my_var = "some text";
-set another_var = "yet another text";
-set yet_another_var = "and another one";
 
--- only one export/export_default statement per file is allowed
--- default export
-export_default(my_var); 
-
--- multiple export
-export(another_var, yet_another_var);
+-- only one export statement per file is allowed
+export(my_var);
