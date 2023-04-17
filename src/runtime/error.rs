@@ -10,14 +10,18 @@ pub enum RuntimeError {
     InvalidOperation(String, Position),
     #[error("undefined variable '{}' at {}", .0.lexeme, .0.pos)]
     UndefinedVariable(Token),
-    #[error("redeclaring existing variable '{}' at {}", .0.lexeme, .0.pos)]
-    RedeclaringVariable(Token),
+    #[error("redeclaring existing identifier '{}' at {}", .0.lexeme, .0.pos)]
+    RedeclaringIdentifier(Token),
     #[error("{0}")]
     ControlFlow(ControlFlow),
     #[error("only array and string can be indexed")]
     UnindexableType,
     #[error("only positive number can be used to index array")]
     InvalidIndex,
+    #[error("not a funciton")]
+    NotFunciton,
+    #[error("expected {0} argument but got {1}")]
+    InvalidArgument(usize, usize),
 }
 
 #[derive(Debug, Error)]

@@ -3,6 +3,8 @@ use std::{
     ops::{Add, Div, Mul, Rem, Sub},
 };
 
+use crate::parser::ast::FunctionDeclaration;
+
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Value {
     Number(f64),
@@ -10,6 +12,24 @@ pub enum Value {
     Boolean(bool),
     Null,
     Array(Vec<Value>),
+    Function(Function),
+}
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub declaration: FunctionDeclaration,
+}
+
+impl PartialEq for Function {
+    fn eq(&self, other: &Self) -> bool {
+        self.declaration.token == other.declaration.token
+    }
+}
+
+impl PartialOrd for Function {
+    fn partial_cmp(&self, _other: &Self) -> Option<std::cmp::Ordering> {
+        Some(std::cmp::Ordering::Less)
+    }
 }
 
 impl Value {
@@ -20,6 +40,7 @@ impl Value {
             Value::Boolean(_) => "boolean",
             Value::Null => "null",
             Value::Array(_) => "array",
+            Value::Function(_) => "function",
         };
 
         value_type.to_string()
@@ -58,6 +79,9 @@ impl fmt::Display for Value {
                     }
                 }
                 write!(f, "[{}]", s)
+            }
+            Value::Function(function) => {
+                write!(f, "[Function {}]", function.declaration.token.lexeme)
             }
         }
     }

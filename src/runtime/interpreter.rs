@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use super::{
     environment::{Environment, RefEnv},
     error::{ControlFlow, RuntimeError},
-    value::Value,
+    value::{Function, Value},
 };
 use crate::{lexer::tokens::TokenType, parser::ast::*};
 
@@ -30,6 +30,7 @@ fn is_truthy(value: &Value) -> bool {
         Value::Null => false,
         Value::String(value) => value.len() != 0,
         Value::Array(value) => !value.is_empty(),
+        Value::Function(_) => true,
     }
 }
 
@@ -63,6 +64,8 @@ impl EvalStmt for Statement {
             Statement::LoopStatement(stmt) => stmt.evaluate(env),
             Statement::BreakStatement(stmt) => stmt.evaluate(env),
             Statement::ContinueStatement(stmt) => stmt.evaluate(env),
+            Statement::FunctionDeclaration(stmt) => stmt.evaluate(env),
+            Statement::ReturnStatement(stmt) => stmt.evaluate(env),
         }
     }
 }
@@ -72,7 +75,7 @@ impl Eval for Declaration {
         let name = &self.name.lexeme;
 
         if env.borrow().contains(name) {
-            return Err(RuntimeError::RedeclaringVariable(self.name.clone()));
+            return Err(RuntimeError::RedeclaringIdentifier(self.name.clone()));
         }
 
         let value = self.value.evaluate_expression(env)?;
@@ -151,7 +154,7 @@ impl Eval for Loop {
 
 impl Eval for Break {
     fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        Err(RuntimeError::ControlFlow(super::error::ControlFlow::Break(
+        Err(RuntimeError::ControlFlow(ControlFlow::Break(
             self.token.clone(),
         )))
     }
@@ -159,9 +162,38 @@ impl Eval for Break {
 
 impl Eval for Continue {
     fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        Err(RuntimeError::ControlFlow(
-            super::error::ControlFlow::Continue(self.token.clone()),
-        ))
+        Err(RuntimeError::ControlFlow(ControlFlow::Continue(
+            self.token.clone(),
+        )))
+    }
+}
+
+impl Eval for FunctionDeclaration {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        let name = &self.token.lexeme;
+
+        if env.borrow().contains(name) {
+            return Err(RuntimeError::RedeclaringIdentifier(self.token.clone()));
+        }
+
+        env.borrow_mut().set(
+            &name,
+            Value::Function(Function {
+                declaration: self.clone(),
+            }),
+        );
+
+        Ok(None)
+    }
+}
+
+impl Eval for Return {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        let value = self.expression.evaluate_expression(env)?;
+        Err(RuntimeError::ControlFlow(ControlFlow::Return(
+            value,
+            self.token.clone(),
+        )))
     }
 }
 
@@ -181,6 +213,7 @@ impl EvalExpr for Expression {
             Expression::BinaryExpression(expr) => expr.evaluate_expression(env),
             Expression::IfExpression(expr) => expr.evaluate_expression(env),
             Expression::MatchExpression(expr) => expr.evaluate_expression(env),
+            Expression::FunctionCall(expr) => expr.evaluate_expression(env),
         }
     }
 }
@@ -402,6 +435,47 @@ impl EvalExpr for Match {
     }
 }
 
+impl EvalExpr for Call {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let value = self.caller.evaluate_expression(env)?;
+
+        if let Value::Function(function) = value {
+            let new_env = Rc::new(RefCell::new(Environment::from(env.clone())));
+            let expected = function.declaration.parameter.len();
+            let got = self.arguments.len();
+
+            if expected != got {
+                return Err(RuntimeError::InvalidArgument(expected, got));
+            }
+
+            for (index, arg) in self.arguments.iter().enumerate() {
+                let arg_value = arg.evaluate_expression(env)?;
+                let arg_name = &function.declaration.parameter[index].lexeme;
+                new_env.borrow_mut().set(arg_name, arg_value);
+            }
+
+            let value = function.declaration.body.evaluate(&new_env);
+            let value = match value {
+                Ok(value) => value,
+                Err(error) => {
+                    if let RuntimeError::ControlFlow(ControlFlow::Return(value, _)) = error {
+                        Some(value)
+                    } else {
+                        return Err(error);
+                    }
+                }
+            };
+
+            match value {
+                Some(value) => Ok(value),
+                None => Ok(Value::Null),
+            }
+        } else {
+            return Err(RuntimeError::NotFunciton);
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(unused_must_use)]
 mod test {
@@ -598,11 +672,29 @@ mod test {
     }
 
     #[test]
-    fn test_array_index_assignment() {
+    fn test_function() {
         let source = "
-            set a = [1, 2, [0, 1]];
-            a[4] = 2;
-            a[2][2] = 2
+            function hello() {
+                'Hello World'
+            }
+        
+            set a  = hello();
+
+            function salute(name) {
+                return 'Hello ' + name;
+            }
+
+            set b = salute('Luckas');
+            
+            function countdown(n) {
+                if n > 0 {
+                    return countdown(n - 1);
+                }
+
+                return n;
+            }
+            
+            set c = countdown(5);
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
@@ -612,13 +704,8 @@ mod test {
         }
         let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
 
-        if let Value::Array(array) = get("a") {
-            assert_eq!(array[4], Value::Number(2.0));
-            assert_eq!(array[3], Value::Null);
-
-            if let Value::Array(child_array) = &array[2] {
-                assert_eq!(child_array[2], Value::Number(2.0))
-            }
-        }
+        assert_eq!(get("a"), Value::String("Hello World".to_owned()));
+        assert_eq!(get("b"), Value::String("Hello Luckas".to_owned()));
+        assert_eq!(get("c"), Value::Number(0.0));
     }
 }

@@ -53,6 +53,8 @@ impl<'a> Parser<'a> {
             TokenType::Loop => self.parse_loop()?,
             TokenType::Break => self.parse_break()?,
             TokenType::Continue => self.parse_continue()?,
+            TokenType::Function => self.parse_function()?,
+            TokenType::Return => self.parse_return()?,
             _ => Statement::ExpressionStatement(self.parse_expression()?),
         };
 
@@ -134,6 +136,63 @@ impl<'a> Parser<'a> {
         let token = self.clone_token();
         let statement = Statement::ContinueStatement(Continue { token });
         self.advance();
+
+        Ok(statement)
+    }
+
+    fn parse_function(&mut self) -> Result<Statement, ParsingError> {
+        self.advance();
+        let token = self.clone_token();
+
+        if !self.current_token.value.is_identifier() {
+            return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
+        }
+
+        self.advance();
+        if self.current_token.value != TokenType::LeftParenthesis {
+            return Err(ParsingError::ExpectedLeftParenthesis(self.clone_token()));
+        }
+        self.advance();
+
+        let mut parameter: Vec<Token> = vec![];
+
+        while self.current_token.value != TokenType::RighParenethesis {
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::MissingParenthesis(self.clone_token()));
+            }
+
+            if !self.current_token.value.is_identifier() {
+                return Err(ParsingError::ExpectedParameter(self.clone_token()));
+            }
+
+            parameter.push(self.clone_token());
+            self.advance();
+
+            if self.current_token.value == TokenType::Comma {
+                self.advance();
+            }
+        }
+
+        self.advance();
+        if self.current_token.value != TokenType::LeftBrace {
+            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+        }
+
+        let body = Box::new(self.parse_block()?);
+        let declaration = Statement::FunctionDeclaration(FunctionDeclaration {
+            token,
+            parameter,
+            body,
+        });
+
+        Ok(declaration)
+    }
+
+    fn parse_return(&mut self) -> Result<Statement, ParsingError> {
+        let token = self.clone_token();
+        self.advance();
+        let expression = self.parse_expression()?;
+        let statement = Statement::ReturnStatement(Return { token, expression });
 
         Ok(statement)
     }
@@ -348,6 +407,7 @@ impl<'a> Parser<'a> {
         loop {
             expression = match self.current_token.value {
                 TokenType::LeftBracket => self.parse_index(expression)?,
+                TokenType::LeftParenthesis => self.parse_call(expression)?,
                 _ => break,
             }
         }
@@ -506,6 +566,30 @@ impl<'a> Parser<'a> {
 
         Ok(arm)
     }
+
+    fn parse_call(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
+        self.advance();
+        let mut arguments: Vec<Expression> = vec![];
+
+        while self.current_token.value != TokenType::RighParenethesis {
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::MissingParenthesis(self.clone_token()));
+            }
+
+            arguments.push(self.parse_expression()?);
+
+            if self.current_token.value == TokenType::Comma {
+                self.advance();
+            }
+        }
+        self.advance();
+        let call = Expression::FunctionCall(Call {
+            caller: Box::new(expression),
+            arguments,
+        });
+
+        Ok(call)
+    }
 }
 
 #[cfg(test)]
@@ -662,6 +746,33 @@ mod test {
             !array[2][3] / [1, 2, 3][0]
         ";
         let expected = "((!array[2][3]) / [1, 2, 3][0])";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_function_declaration() {
+        let stmt = "
+            function hello(name) {
+                set message = 'Hello' + name;
+                return message;
+            }
+        ";
+        let expected = "function hello(name) { set message = ('Hello' + name); return message; }";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_function_call() {
+        let stmt = "
+            f(true, 2 * 3 + 1, [1, 2])
+        ";
+        let expected = "f(true, ((2 * 3) + 1), [1, 2])";
         let tokens = Lexer::new(stmt).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();

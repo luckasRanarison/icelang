@@ -13,6 +13,7 @@ pub enum Expression {
     BinaryExpression(Binary),
     IfExpression(If),
     MatchExpression(Match),
+    FunctionCall(Call),
 }
 
 impl fmt::Display for Expression {
@@ -27,6 +28,7 @@ impl fmt::Display for Expression {
             Expression::ArrayExpression(e) => write!(f, "{e}"),
             Expression::IndexExpression(e) => write!(f, "{e}"),
             Expression::AssignementExpression(e) => write!(f, "{e}"),
+            Expression::FunctionCall(e) => write!(f, "{e}"),
         }
     }
 }
@@ -183,6 +185,26 @@ impl fmt::Display for Match {
 }
 
 #[derive(Debug, Clone)]
+pub struct Call {
+    pub caller: Box<Expression>,
+    pub arguments: Vec<Expression>,
+}
+
+impl fmt::Display for Call {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        let mut iter = self.arguments.iter();
+        if let Some(arg) = iter.next() {
+            s.push_str(&format!("{}", arg));
+            for arg in iter {
+                s.push_str(&format!(", {}", arg));
+            }
+        }
+        write!(f, "{}({})", self.caller, s)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Statement {
     VariableDeclaration(Declaration),
     ExpressionStatement(Expression),
@@ -191,6 +213,8 @@ pub enum Statement {
     LoopStatement(Loop),
     BreakStatement(Break),
     ContinueStatement(Continue),
+    FunctionDeclaration(FunctionDeclaration),
+    ReturnStatement(Return),
 }
 
 impl fmt::Display for Statement {
@@ -203,6 +227,8 @@ impl fmt::Display for Statement {
             Statement::BreakStatement(s) => write!(f, "{s}"),
             Statement::ContinueStatement(s) => write!(f, "{s}"),
             Statement::LoopStatement(s) => write!(f, "{s}"),
+            Statement::FunctionDeclaration(s) => write!(f, "{s}"),
+            Statement::ReturnStatement(s) => write!(f, "{s}"),
         }
     }
 }
@@ -276,5 +302,38 @@ pub struct Continue {
 impl fmt::Display for Continue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "continue")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionDeclaration {
+    pub token: Token,
+    pub parameter: Vec<Token>,
+    pub body: Box<Statement>,
+}
+
+impl fmt::Display for FunctionDeclaration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        let mut iter = self.parameter.iter();
+        if let Some(param) = iter.next() {
+            s.push_str(&format!("{}", param.lexeme));
+            for param in iter {
+                s.push_str(&format!(", {}", param.lexeme));
+            }
+        }
+        write!(f, "function {}({}) {}", self.token.lexeme, s, self.body)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Return {
+    pub token: Token,
+    pub expression: Expression,
+}
+
+impl fmt::Display for Return {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "return {}", self.expression)
     }
 }
