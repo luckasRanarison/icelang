@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use super::{
     environment::{Environment, RefEnv},
     error::{ControlFlow, RuntimeError},
-    value::{Function, Value},
+    value::{Function, RefVal, Value},
 };
 use crate::{lexer::tokens::TokenType, parser::ast::*};
 
@@ -34,6 +34,10 @@ fn is_truthy(value: &Value) -> bool {
     }
 }
 
+trait EvalRef {
+    fn evaluate_ref(&self, env: &RefEnv) -> Result<RefVal, RuntimeError>;
+}
+
 pub trait Eval {
     fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError>;
 }
@@ -50,7 +54,7 @@ impl Eval for Expression {
     }
 }
 
-pub trait EvalStmt {
+trait EvalStmt {
     fn evaluate_statement(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError>;
 }
 
@@ -199,7 +203,7 @@ impl Eval for Return {
     }
 }
 
-pub trait EvalExpr {
+trait EvalExpr {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError>;
 }
 
@@ -240,7 +244,19 @@ impl EvalExpr for Variable {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         let name = &self.token.lexeme;
 
-        if let Some(value) = env.borrow_mut().get(name) {
+        if let Some(value) = env.borrow().get(name) {
+            Ok(value)
+        } else {
+            Err(RuntimeError::UndefinedVariable(self.token.clone()))
+        }
+    }
+}
+
+impl EvalRef for Variable {
+    fn evaluate_ref(&self, env: &RefEnv) -> Result<RefVal, RuntimeError> {
+        let name = &self.token.lexeme;
+
+        if let Some(value) = env.borrow().get_ref(name) {
             Ok(value)
         } else {
             Err(RuntimeError::UndefinedVariable(self.token.clone()))
@@ -262,16 +278,23 @@ impl EvalExpr for Assign {
             env.borrow_mut().assign(name, expression_value.clone());
         }
 
+        if let Expression::IndexExpression(index_expression) = &*self.left {
+            let rf = index_expression.evaluate_ref(env)?;
+            *rf.borrow_mut() = expression_value.clone();
+        }
+
         Ok(expression_value)
     }
 }
 
 impl EvalExpr for Array {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
-        let mut array: Vec<Value> = vec![];
+        let mut array: Vec<RefVal> = vec![];
 
         for item in &self.items {
-            array.push(item.evaluate_expression(env)?);
+            let expression = item.evaluate_expression(env)?;
+            let rf = Rc::new(RefCell::new(expression));
+            array.push(rf);
         }
 
         Ok(Value::Array(array))
@@ -296,7 +319,7 @@ impl EvalExpr for Index {
         let value = match expression {
             Value::Array(array) => {
                 if let Some(value) = array.get(index) {
-                    value.clone()
+                    value.borrow().clone()
                 } else {
                     Value::Null
                 }
@@ -312,6 +335,37 @@ impl EvalExpr for Index {
         };
 
         Ok(value)
+    }
+}
+
+impl EvalRef for Index {
+    fn evaluate_ref(&self, env: &RefEnv) -> Result<RefVal, RuntimeError> {
+        let expression_ref = match &*self.expression {
+            Expression::VariableExpression(variable) => variable.evaluate_ref(env)?,
+            Expression::IndexExpression(index_expr) => index_expr.evaluate_ref(env)?,
+            _ => return Err(RuntimeError::InvalidAssignment(self.token.clone())),
+        };
+        let index_expression = self.index.evaluate_expression(env)?;
+        let index = match index_expression {
+            Value::Number(index) => {
+                if index < 0.0 {
+                    return Err(RuntimeError::InvalidIndex(self.token.clone()));
+                }
+                index as usize
+            }
+            _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
+        };
+        let expression = &mut *expression_ref.borrow_mut();
+
+        match expression {
+            Value::Array(array) => {
+                if index > array.len() {
+                    array.resize_with(index + 1, || Rc::new(RefCell::new(Value::Null)))
+                }
+                Ok(array[index].clone())
+            }
+            _ => Err(RuntimeError::NotAnArray(self.token.clone())),
+        }
     }
 }
 

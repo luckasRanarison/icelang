@@ -20,8 +20,12 @@ pub enum RuntimeError {
     InvalidIndex(Token),
     #[error("trying to call a non function expression at {}", .0.pos)]
     NotFunciton(Token),
+    #[error("trying to assign index value to a non-array variable at {}", .0.pos)]
+    NotAnArray(Token),
     #[error("expected {0} argument but got {1}")]
     InvalidArgument(usize, usize),
+    #[error("invalid assignment at line {}", .0.pos)]
+    InvalidAssignment(Token),
 }
 
 #[derive(Debug, Error)]

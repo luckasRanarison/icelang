@@ -1,9 +1,13 @@
 use std::{
+    cell::RefCell,
     fmt,
     ops::{Add, Div, Mul, Rem, Sub},
+    rc::Rc,
 };
 
 use crate::parser::ast::FunctionDeclaration;
+
+pub type RefVal = Rc<RefCell<Value>>;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Value {
@@ -11,7 +15,7 @@ pub enum Value {
     String(String),
     Boolean(bool),
     Null,
-    Array(Vec<Value>),
+    Array(Vec<RefVal>),
     Function(Function),
 }
 
@@ -73,9 +77,9 @@ impl fmt::Display for Value {
                 let mut s = String::new();
                 let mut iter = items.iter();
                 if let Some(item) = iter.next() {
-                    s.push_str(&format!("{}", item));
+                    s.push_str(&format!("{}", item.as_ref().borrow()));
                     for item in iter {
-                        s.push_str(&format!(", {}", item));
+                        s.push_str(&format!(", {}", item.as_ref().borrow()));
                     }
                 }
                 write!(f, "[{}]", s)
