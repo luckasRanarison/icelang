@@ -27,8 +27,6 @@ pub enum TokenType {
     Function,
     Lambda,
     Return,
-    Import,
-    Export,
 
     Plus,
     Minus,
@@ -148,9 +146,7 @@ impl TokenType {
             | TokenType::Break
             | TokenType::Continue
             | TokenType::Function
-            | TokenType::Return
-            | TokenType::Import
-            | TokenType::Export => true,
+            | TokenType::Return => true,
             _ => false,
         }
     }

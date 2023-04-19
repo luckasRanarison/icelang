@@ -1,3 +1,8 @@
+use super::{environment::RefEnv, error::RuntimeError};
+use crate::{
+    lexer::tokens::Token,
+    parser::ast::{Expression, FunctionDeclaration},
+};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -5,8 +10,6 @@ use std::{
     ops::{Add, Div, Mul, Rem, Sub},
     rc::Rc,
 };
-
-use crate::parser::ast::FunctionDeclaration;
 
 pub type RefVal = Rc<RefCell<Value>>;
 
@@ -19,6 +22,7 @@ pub enum Value {
     Array(Vec<RefVal>),
     Object(Object),
     Function(Function),
+    Builtin(Builtin),
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +57,35 @@ impl PartialOrd for Object {
     }
 }
 
+#[derive(Clone)]
+pub struct Builtin {
+    pub name: &'static str,
+    pub args: usize,
+    pub function: fn(&RefEnv, token: &Token, &Vec<Expression>) -> Result<Value, RuntimeError>,
+}
+
+impl fmt::Debug for Builtin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Builtin")
+            .field("name", &self.name)
+            .field("args", &self.args)
+            .field("function", &"<native function>")
+            .finish()
+    }
+}
+
+impl PartialEq for Builtin {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl PartialOrd for Builtin {
+    fn partial_cmp(&self, _other: &Self) -> Option<std::cmp::Ordering> {
+        Some(std::cmp::Ordering::Less)
+    }
+}
+
 impl Value {
     pub fn get_type(&self) -> String {
         let value_type = match self {
@@ -62,7 +95,7 @@ impl Value {
             Value::Null => "null",
             Value::Array(_) => "array",
             Value::Object(_) => "object",
-            Value::Function(_) => "function",
+            Value::Function(_) | Value::Builtin(_) => "function",
         };
 
         value_type.to_string()
@@ -108,6 +141,9 @@ impl fmt::Display for Value {
                     None => "anonymous",
                 };
                 write!(f, "[Function {}]", name)
+            }
+            Value::Builtin(builtin) => {
+                write!(f, "[Function {}]", builtin.name)
             }
             Value::Object(object) => {
                 let mut s = String::new();

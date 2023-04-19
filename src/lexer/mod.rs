@@ -261,8 +261,6 @@ impl<'a> Lexer<'a> {
             "function" => TokenType::Function,
             "lambda" => TokenType::Lambda,
             "return" => TokenType::Return,
-            "import" => TokenType::Import,
-            "export" => TokenType::Export,
             _ => TokenType::Identifier(self.current_lexeme.clone()),
         };
 

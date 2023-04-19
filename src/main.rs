@@ -3,7 +3,7 @@ use std::{env, fs::read_to_string, io, process};
 use icelang::{
     lexer::Lexer,
     parser::{error::ParsingError, Parser},
-    runtime::interpreter::Interpreter,
+    runtime::{error::RuntimeError, interpreter::Interpreter},
 };
 
 fn main() {
@@ -88,7 +88,13 @@ fn repl_mode() {
                         println!("{}", value);
                     }
                 }
-                Err(err) => println!("{}", err),
+                Err(err) => {
+                    if let RuntimeError::Export(value) = err {
+                        println!("{}", value);
+                    } else {
+                        println!("Runtime error: {}", err)
+                    }
+                }
             };
         }
     }
@@ -101,5 +107,22 @@ fn run_file(file_path: &String) {
         process::exit(1);
     });
 
-    println!("{}", contents);
+    let interpreter = Interpreter::new();
+    let mut lexer = Lexer::new(&contents);
+    let tokens = lexer.tokenize().unwrap_or_else(|err| {
+        eprintln!("Parsing error: {err}");
+        process::exit(1)
+    });
+    let mut parser = Parser::new(&tokens);
+    let nodes = parser.parse().unwrap_or_else(|err| {
+        eprintln!("Syntax error: {err}");
+        process::exit(1)
+    });
+
+    for node in nodes {
+        interpreter.interpret(node).unwrap_or_else(|err| {
+            eprintln!("Runtime error: {err}");
+            process::exit(1)
+        });
+    }
 }

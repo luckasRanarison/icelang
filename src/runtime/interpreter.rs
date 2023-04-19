@@ -1,11 +1,15 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f64::INFINITY, rc::Rc};
 
 use super::{
+    builtin::get_builtins,
     environment::{Environment, RefEnv},
     error::{ControlFlow, RuntimeError},
     value::{Function, RefVal, Value},
 };
-use crate::{lexer::tokens::TokenType, parser::ast::*};
+use crate::{
+    lexer::{tokens::TokenType, Lexer},
+    parser::{ast::*, Parser},
+};
 
 pub struct Interpreter {
     environment: RefEnv,
@@ -13,13 +17,42 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Self {
-            environment: Rc::new(RefCell::new(Environment::new())),
+        let environment = Rc::new(RefCell::new(Environment::new()));
+        for builtin in get_builtins() {
+            environment
+                .borrow_mut()
+                .set(builtin.name, Value::Builtin(builtin))
         }
+
+        Self { environment }
     }
 
     pub fn interpret<T: Eval>(&self, node: T) -> Result<Option<Value>, RuntimeError> {
         Ok(node.evaluate(&self.environment)?)
+    }
+
+    pub fn run_source(source: &str) -> Result<Value, RuntimeError> {
+        let interpreter = Interpreter::new();
+        let tokens = match Lexer::new(source).tokenize() {
+            Ok(value) => value,
+            Err(error) => return Err(RuntimeError::LexicalError(error)),
+        };
+        let nodes = match Parser::new(&tokens).parse() {
+            Ok(value) => value,
+            Err(error) => return Err(RuntimeError::ParsingError(error)),
+        };
+
+        for node in nodes {
+            if let Err(error) = interpreter.interpret(node) {
+                if let RuntimeError::Export(value) = error {
+                    return Ok(value);
+                } else {
+                    return Err(error);
+                }
+            }
+        }
+
+        Ok(Value::Null)
     }
 }
 
@@ -31,7 +64,7 @@ fn is_truthy(value: &Value) -> bool {
         Value::String(value) => value.len() != 0,
         Value::Array(value) => !value.is_empty(),
         Value::Object(value) => value.values.len() != 0,
-        Value::Function(_) => true,
+        _ => true,
     }
 }
 
@@ -215,7 +248,7 @@ impl Eval for Return {
     }
 }
 
-trait EvalExpr {
+pub trait EvalExpr {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError>;
 }
 
@@ -596,14 +629,18 @@ impl EvalExpr for Lambda {
 impl EvalExpr for Call {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         let value = self.caller.evaluate_expression(env)?;
+        let got = self.arguments.len();
 
         if let Value::Function(function) = value {
             let new_env = Rc::new(RefCell::new(Environment::from(env.clone())));
             let expected = function.declaration.parameter.len();
-            let got = self.arguments.len();
 
             if expected != got {
-                return Err(RuntimeError::InvalidArgument(expected, got));
+                return Err(RuntimeError::InvalidArgument(
+                    expected,
+                    got,
+                    self.token.clone(),
+                ));
             }
 
             for (index, arg) in self.arguments.iter().enumerate() {
@@ -628,6 +665,20 @@ impl EvalExpr for Call {
                 Some(value) => Ok(value),
                 None => Ok(Value::Null),
             }
+        } else if let Value::Builtin(builtin) = value {
+            let expected = builtin.args;
+
+            if expected != INFINITY as usize && got != expected {
+                return Err(RuntimeError::InvalidArgument(
+                    expected,
+                    got,
+                    self.token.clone(),
+                ));
+            }
+
+            let value = (builtin.function)(env, &self.token, &self.arguments)?;
+
+            Ok(value)
         } else {
             return Err(RuntimeError::NotFunciton(self.token.clone()));
         }

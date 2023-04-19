@@ -1,5 +1,8 @@
 use super::value::Value;
-use crate::lexer::{tokens::Token, utils::Position};
+use crate::{
+    lexer::{errors::LexicalError, tokens::Token, utils::Position},
+    parser::error::ParsingError,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -24,10 +27,20 @@ pub enum RuntimeError {
     NotAnArray(Token),
     #[error("calling property on a non-object type at {}", .0.pos)]
     NotAnObject(Token),
-    #[error("expected {0} argument but got {1}")]
-    InvalidArgument(usize, usize),
+    #[error("expected {0} argument but got {1} at {}", .2.pos)]
+    InvalidArgument(usize, usize, Token),
     #[error("invalid assignment at line {}", .0.pos)]
     InvalidAssignment(Token),
+    #[error("module '{0}' not found at line {}", .1.pos)]
+    ModuleNotFound(String, Token),
+    #[error("invalid path '{0}' at line {}", .1.pos)]
+    InvalidPath(Value, Token),
+    #[error("{0}")]
+    LexicalError(LexicalError),
+    #[error("{0}")]
+    ParsingError(ParsingError),
+    #[error("export")]
+    Export(Value),
 }
 
 #[derive(Debug, Error)]
