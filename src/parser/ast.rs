@@ -226,6 +226,7 @@ impl fmt::Display for Match {
 #[derive(Debug, Clone)]
 pub struct Call {
     pub token: Token,
+    pub object: Option<Box<Expression>>,
     pub caller: Box<Expression>,
     pub arguments: Vec<Expression>,
 }

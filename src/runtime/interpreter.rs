@@ -643,6 +643,11 @@ impl EvalExpr for Call {
                 ));
             }
 
+            if let Some(object) = &self.object {
+                let object_value = object.evaluate_expression(env)?;
+                new_env.borrow_mut().set("self", object_value);
+            }
+
             for (index, arg) in self.arguments.iter().enumerate() {
                 let arg_value = arg.evaluate_expression(env)?;
                 let arg_name = &function.declaration.parameter[index].lexeme;
@@ -976,9 +981,9 @@ mod test {
     fn test_object() {
         let source = "
             set me = {
-                name: 'luckas',
+                name: 'Luckas',
                 age: 17,
-                salute: lambda(other) 'hello ' + other.name
+                salute: lambda(other) 'Hello ' + other.name + ' I\\'m ' + self.name
             };
             set name = me.name;
             set age = me['age'];
@@ -995,9 +1000,12 @@ mod test {
         }
         let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
 
-        assert_eq!(get("name"), Value::String("luckas".to_owned()));
+        assert_eq!(get("name"), Value::String("Luckas".to_owned()));
         assert_eq!(get("age"), Value::Number(17.0));
-        assert_eq!(get("salute"), Value::String("hello stranger".to_owned()));
+        assert_eq!(
+            get("salute"),
+            Value::String("Hello stranger I'm Luckas".to_owned())
+        );
         assert_eq!(get("emotion"), Value::Boolean(true));
     }
 }

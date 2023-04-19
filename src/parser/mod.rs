@@ -91,6 +91,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block(&mut self) -> Result<Statement, ParsingError> {
+        // TODO: find a better way to tell if it's an object
+        let mut next_three = self
+            .tokens
+            .clone()
+            .filter(|token| !token.value.is_line_break());
+
+        if let Some(token) = next_three.nth(1) {
+            if token.value == TokenType::Colon {
+                return Ok(Statement::ExpressionStatement(self.parse_expression()?));
+            }
+        }
+
         self.advance();
         let mut statements: Vec<Statement> = vec![];
         while self.current_token.value != TokenType::RightBrace {
@@ -412,7 +424,7 @@ impl<'a> Parser<'a> {
         loop {
             expression = match self.current_token.value {
                 TokenType::LeftBracket => self.parse_index(expression)?,
-                TokenType::LeftParenthesis => self.parse_call(expression)?,
+                TokenType::LeftParenthesis => self.parse_call(expression, None)?,
                 TokenType::Dot => self.parse_prop_access(expression)?,
                 _ => break,
             }
@@ -531,9 +543,14 @@ impl<'a> Parser<'a> {
 
         let prop_access = Expression::PropAccess(Access {
             token,
-            expression: Box::new(expression),
+            expression: Box::new(expression.clone()),
             prop,
         });
+
+        if self.current_token.value == TokenType::LeftParenthesis {
+            let call = self.parse_call(prop_access, Some(expression))?;
+            return Ok(call);
+        }
 
         Ok(prop_access)
     }
@@ -644,7 +661,11 @@ impl<'a> Parser<'a> {
         Ok(arm)
     }
 
-    fn parse_call(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
+    fn parse_call(
+        &mut self,
+        expression: Expression,
+        object: Option<Expression>,
+    ) -> Result<Expression, ParsingError> {
         let token = self.clone_token();
         self.advance();
         let mut arguments: Vec<Expression> = vec![];
@@ -661,9 +682,17 @@ impl<'a> Parser<'a> {
             }
         }
         self.advance();
+
+        let object = if let Some(object) = object {
+            Some(Box::new(object))
+        } else {
+            None
+        };
+
         let call = Expression::FunctionCall(Call {
             token,
             caller: Box::new(expression),
+            object,
             arguments,
         });
 
