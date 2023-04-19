@@ -359,7 +359,7 @@ impl EvalRef for Index {
 
         match expression {
             Value::Array(array) => {
-                if index > array.len() {
+                if index >= array.len() {
                     array.resize_with(index + 1, || Rc::new(RefCell::new(Value::Null)))
                 }
                 Ok(array[index].clone())
@@ -552,6 +552,7 @@ impl EvalExpr for Call {
 mod test {
     use super::Interpreter;
     use crate::{lexer::Lexer, parser::Parser, runtime::value::Value};
+    use std::{cell::RefCell, rc::Rc};
 
     #[test]
     fn test_eval_operations() {
@@ -740,6 +741,39 @@ mod test {
         assert_eq!(get("c"), Value::String("hi".to_owned()));
         assert_eq!(get("d"), Value::Boolean(true));
         assert_eq!(get("e"), Value::Null);
+    }
+
+    #[test]
+    fn test_index_assignment() {
+        let source = "
+            set a = [1, 2, [0, 1]];
+            a[1] = a[0];
+            a[0] = 0;
+            a[2][2] = 2;
+            a[4] = 3;
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(
+            get("a"),
+            Value::Array(vec![
+                Rc::new(RefCell::new(Value::Number(0.0))),
+                Rc::new(RefCell::new(Value::Number(1.0))),
+                Rc::new(RefCell::new(Value::Array(vec![
+                    Rc::new(RefCell::new(Value::Number(0.0))),
+                    Rc::new(RefCell::new(Value::Number(1.0))),
+                    Rc::new(RefCell::new(Value::Number(2.0))),
+                ]))),
+                Rc::new(RefCell::new(Value::Null)),
+                Rc::new(RefCell::new(Value::Number(3.0))),
+            ])
+        );
     }
 
     #[test]
