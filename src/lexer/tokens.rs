@@ -44,9 +44,14 @@ pub enum TokenType {
     LeftBracket,
     RightBracket,
     Bang,
+    Equal,
+    PlusEqual,
+    MinusEqaul,
+    AsterixEqual,
+    SlashEqual,
+    ModuloEqual,
 
     BangEqual,
-    Equal,
     EqualEqual,
     Greater,
     GreaterEqual,
@@ -78,10 +83,6 @@ impl TokenType {
         matches!(self, TokenType::Eof)
     }
 
-    pub fn is_assignment(&self) -> bool {
-        matches!(self, TokenType::Equal)
-    }
-
     pub fn is_equality(&self) -> bool {
         matches!(self, TokenType::EqualEqual | TokenType::BangEqual)
     }
@@ -104,6 +105,18 @@ impl TokenType {
 
     pub fn is_identifier(&self) -> bool {
         matches!(self, TokenType::Identifier(_))
+    }
+
+    pub fn is_assignment(&self) -> bool {
+        match self {
+            TokenType::Equal
+            | TokenType::PlusEqual
+            | TokenType::MinusEqaul
+            | TokenType::AsterixEqual
+            | TokenType::SlashEqual
+            | TokenType::ModuloEqual => true,
+            _ => false,
+        }
     }
 
     pub fn is_comparaison(&self) -> bool {

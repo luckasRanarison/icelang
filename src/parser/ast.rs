@@ -53,12 +53,13 @@ impl fmt::Display for Literal {
 #[derive(Debug, Clone)]
 pub struct Assign {
     pub left: Box<Expression>,
+    pub token: Token,
     pub value: Box<Expression>,
 }
 
 impl fmt::Display for Assign {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = {}", self.left, self.value)
+        write!(f, "{} {} {}", self.left, self.token.lexeme, self.value)
     }
 }
 

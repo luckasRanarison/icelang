@@ -216,6 +216,7 @@ impl<'a> Parser<'a> {
             {
                 let assignment = Expression::AssignementExpression(Assign {
                     left: Box::new(expression),
+                    token,
                     value: Box::new(value),
                 });
                 return Ok(assignment);

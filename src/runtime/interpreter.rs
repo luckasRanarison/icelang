@@ -322,9 +322,26 @@ impl EvalExpr for Assign {
             _ => unreachable!(),
         };
 
-        *rf.borrow_mut() = expression_value.clone();
-
-        Ok(expression_value)
+        if let TokenType::Equal = &self.token.value {
+            *rf.borrow_mut() = expression_value.clone();
+            Ok(expression_value)
+        } else {
+            let prev = rf.borrow().clone();
+            let result = match self.token.value {
+                TokenType::PlusEqual => prev + expression_value,
+                TokenType::MinusEqaul => prev - expression_value,
+                TokenType::AsterixEqual => prev * expression_value,
+                TokenType::SlashEqual => prev / expression_value,
+                TokenType::ModuloEqual => prev % expression_value,
+                _ => unreachable!(),
+            };
+            if let Some(result) = result {
+                *rf.borrow_mut() = result.clone();
+                Ok(result)
+            } else {
+                Err(RuntimeError::InvalidAssignment(self.token.clone()))
+            }
+        }
     }
 }
 
