@@ -8,7 +8,9 @@ pub enum Expression {
     VariableExpression(Variable),
     AssignementExpression(Assign),
     ArrayExpression(Array),
+    ObjectExpression(Object),
     IndexExpression(Index),
+    PropAccess(Access),
     UnaryExpression(Unary),
     BinaryExpression(Binary),
     IfExpression(If),
@@ -31,6 +33,8 @@ impl fmt::Display for Expression {
             Expression::AssignementExpression(e) => write!(f, "{e}"),
             Expression::FunctionCall(e) => write!(f, "{e}"),
             Expression::LambdaFunction(e) => write!(f, "{e}"),
+            Expression::ObjectExpression(e) => write!(f, "{e}"),
+            Expression::PropAccess(e) => write!(f, "{e}"),
         }
     }
 }
@@ -78,6 +82,25 @@ impl fmt::Display for Array {
 }
 
 #[derive(Debug, Clone)]
+pub struct Object {
+    pub props: Vec<(Token, Expression)>,
+}
+
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        let mut iter = self.props.iter();
+        if let Some(item) = iter.next() {
+            s.push_str(&format!("{}: {}", item.0.lexeme, item.1));
+            for item in iter {
+                s.push_str(&format!(", {}: {}", item.0.lexeme, item.1));
+            }
+        }
+        write!(f, "{{ {} }}", s)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Index {
     pub token: Token,
     pub expression: Box<Expression>,
@@ -87,6 +110,19 @@ pub struct Index {
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}[{}]", self.expression, self.index)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Access {
+    pub token: Token,
+    pub expression: Box<Expression>,
+    pub prop: Token,
+}
+
+impl fmt::Display for Access {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.expression, self.prop.lexeme)
     }
 }
 

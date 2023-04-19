@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    collections::HashMap,
     fmt,
     ops::{Add, Div, Mul, Rem, Sub},
     rc::Rc,
@@ -16,6 +17,7 @@ pub enum Value {
     Boolean(bool),
     Null,
     Array(Vec<RefVal>),
+    Object(Object),
     Function(Function),
 }
 
@@ -36,6 +38,21 @@ impl PartialOrd for Function {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Object {
+    pub values: HashMap<String, RefVal>,
+}
+
+impl PartialOrd for Object {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.values.len() > other.values.len() {
+            Some(std::cmp::Ordering::Greater)
+        } else {
+            Some(std::cmp::Ordering::Less)
+        }
+    }
+}
+
 impl Value {
     pub fn get_type(&self) -> String {
         let value_type = match self {
@@ -44,6 +61,7 @@ impl Value {
             Value::Boolean(_) => "boolean",
             Value::Null => "null",
             Value::Array(_) => "array",
+            Value::Object(_) => "object",
             Value::Function(_) => "function",
         };
 
@@ -90,6 +108,17 @@ impl fmt::Display for Value {
                     None => "anonymous",
                 };
                 write!(f, "[Function {}]", name)
+            }
+            Value::Object(object) => {
+                let mut s = String::new();
+                let mut iter = object.values.iter();
+                if let Some((key, value)) = iter.next() {
+                    s.push_str(&format!("{}: {}", key, value.as_ref().borrow()));
+                    for (key, value) in iter {
+                        s.push_str(&format!(", {}: {}", key, value.as_ref().borrow()));
+                    }
+                }
+                write!(f, "{{ {} }}", s)
             }
         }
     }

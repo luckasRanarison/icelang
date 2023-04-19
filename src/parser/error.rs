@@ -19,7 +19,11 @@ pub enum ParsingError {
     MissingSemicolon(Token),
     #[error("missing assignment '=' at '{}'", .0.pos)]
     MissingAssignment(Token),
-    #[error("expected opening brace '{{' but got '{}' at {}", .0.lexeme, .0.pos)]
+    #[error("expected colon ':' but got '{}' at {}", .0.lexeme, .0.pos)]
+    ExpectedColon(Token),
+    #[error("expected comma ',' but got '{}' at {}", .0.lexeme, .0.pos)]
+    ExpectedComma(Token),
+    #[error("expected left brace '{{' but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedLeftBrace(Token),
     #[error("expected left parenthesis '(' but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedLeftParenthesis(Token),
@@ -37,4 +41,6 @@ pub enum ParsingError {
     MissingComma(Token),
     #[error("invalid assignment target at line {}", .0.pos)]
     InvalidAssignment(Token),
+    #[error("invalid property name at line {}", .0.pos)]
+    InvalidProp(Token),
 }

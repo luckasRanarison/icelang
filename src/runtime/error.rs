@@ -22,6 +22,8 @@ pub enum RuntimeError {
     NotFunciton(Token),
     #[error("trying to assign index value to a non-array variable at {}", .0.pos)]
     NotAnArray(Token),
+    #[error("calling property on a non-object type at {}", .0.pos)]
+    NotAnObject(Token),
     #[error("expected {0} argument but got {1}")]
     InvalidArgument(usize, usize),
     #[error("invalid assignment at line {}", .0.pos)]

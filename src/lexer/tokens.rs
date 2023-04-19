@@ -154,6 +154,14 @@ impl TokenType {
             _ => false,
         }
     }
+
+    pub fn is_symbol(&self) -> bool {
+        !self.is_identifier()
+            && !self.is_keyword()
+            && !self.is_line_break()
+            && !self.is_eof()
+            && !matches!(self, TokenType::String(_) | TokenType::Number(_))
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

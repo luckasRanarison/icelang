@@ -34,6 +34,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn skip_line(&mut self) {
+        while self.current_token.value.is_line_break() {
+            self.current_token = self.tokens.next().unwrap();
+        }
+    }
+
     pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
         self.advance();
         let mut nodes: Vec<Statement> = Vec::new();
@@ -192,7 +198,10 @@ impl<'a> Parser<'a> {
             self.advance();
             let value = self.parse_assignment()?;
 
-            if let Expression::VariableExpression(_) | Expression::IndexExpression(_) = expression {
+            if let Expression::VariableExpression(_)
+            | Expression::IndexExpression(_)
+            | Expression::PropAccess(_) = expression
+            {
                 let assignment = Expression::AssignementExpression(Assign {
                     left: Box::new(expression),
                     value: Box::new(value),
@@ -365,6 +374,7 @@ impl<'a> Parser<'a> {
             TokenType::Lambda => self.parse_lambda()?,
             TokenType::LeftParenthesis => self.parse_group()?,
             TokenType::LeftBracket => self.parse_array()?,
+            TokenType::LeftBrace => self.parse_object()?,
             TokenType::Identifier(_) => {
                 let next_token = self.peek();
                 if next_token.value.is_literal() || next_token.value.is_identifier() {
@@ -403,6 +413,7 @@ impl<'a> Parser<'a> {
             expression = match self.current_token.value {
                 TokenType::LeftBracket => self.parse_index(expression)?,
                 TokenType::LeftParenthesis => self.parse_call(expression)?,
+                TokenType::Dot => self.parse_prop_access(expression)?,
                 _ => break,
             }
         }
@@ -431,6 +442,13 @@ impl<'a> Parser<'a> {
             }
 
             items.push(self.parse_expression()?);
+            self.skip_line();
+
+            if self.current_token.value != TokenType::RightBracket
+                && self.current_token.value != TokenType::Comma
+            {
+                return Err(ParsingError::ExpectedComma(self.clone_token()));
+            }
 
             if self.current_token.value == TokenType::Comma {
                 self.advance();
@@ -439,6 +457,46 @@ impl<'a> Parser<'a> {
         let array_expression = Expression::ArrayExpression(Array { items });
 
         Ok(array_expression)
+    }
+
+    fn parse_object(&mut self) -> Result<Expression, ParsingError> {
+        self.advance();
+        let mut props: Vec<(Token, Expression)> = vec![];
+
+        while self.current_token.value != TokenType::RightBrace {
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
+            }
+
+            if self.current_token.value.is_symbol() || self.current_token.lexeme.contains(".") {
+                return Err(ParsingError::InvalidProp(self.clone_token()));
+            }
+
+            let name = self.clone_token();
+            self.advance();
+
+            if self.current_token.value != TokenType::Colon {
+                return Err(ParsingError::ExpectedColon(self.clone_token()));
+            }
+            self.advance();
+
+            let value = self.parse_expression()?;
+            props.push((name, value));
+            self.skip_line();
+
+            if self.current_token.value != TokenType::RightBrace
+                && self.current_token.value != TokenType::Comma
+            {
+                return Err(ParsingError::ExpectedComma(self.clone_token()));
+            }
+
+            if self.current_token.value == TokenType::Comma {
+                self.advance()
+            }
+        }
+        let object_expression = Expression::ObjectExpression(Object { props });
+
+        Ok(object_expression)
     }
 
     fn parse_index(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
@@ -458,6 +516,26 @@ impl<'a> Parser<'a> {
         });
 
         Ok(index_expression)
+    }
+
+    fn parse_prop_access(&mut self, expression: Expression) -> Result<Expression, ParsingError> {
+        let token = self.clone_token();
+        self.advance();
+
+        if !self.current_token.value.is_identifier() && !self.current_token.value.is_keyword() {
+            return Err(ParsingError::InvalidProp(self.clone_token()));
+        }
+
+        let prop = self.clone_token();
+        self.advance();
+
+        let prop_access = Expression::PropAccess(Access {
+            token,
+            expression: Box::new(expression),
+            prop,
+        });
+
+        Ok(prop_access)
     }
 
     fn parse_if(&mut self) -> Result<Expression, ParsingError> {
@@ -826,6 +904,36 @@ mod test {
             }
         ";
         let expected = "set hello = lambda() { 'Hello World'; }";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_object() {
+        let stmt = "
+            set my_object = {
+                my_prop: 'stuff',
+                my_another_prop: 3 * 2 + 1,
+                my_method: lambda() {
+                    return 'stuff';
+                }
+            }
+        ";
+        let expected = "set my_object = { my_prop: 'stuff', my_another_prop: ((3 * 2) + 1), my_method: lambda() { return 'stuff'; } }";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_prop_access() {
+        let stmt = "
+            object.prop.method()
+        ";
+        let expected = "object.prop.method()";
         let tokens = Lexer::new(stmt).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();

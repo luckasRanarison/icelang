@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::{
     environment::{Environment, RefEnv},
@@ -30,7 +30,19 @@ fn is_truthy(value: &Value) -> bool {
         Value::Null => false,
         Value::String(value) => value.len() != 0,
         Value::Array(value) => !value.is_empty(),
+        Value::Object(value) => value.values.len() != 0,
         Value::Function(_) => true,
+    }
+}
+
+fn get_numerical_index(expr: &Index, value: Value) -> Result<usize, RuntimeError> {
+    if let Value::Number(index) = value {
+        if index < 0.0 {
+            return Err(RuntimeError::InvalidIndex(expr.token.clone()));
+        }
+        Ok(index as usize)
+    } else {
+        Err(RuntimeError::InvalidIndex(expr.token.clone()))
     }
 }
 
@@ -221,6 +233,8 @@ impl EvalExpr for Expression {
             Expression::MatchExpression(expr) => expr.evaluate_expression(env),
             Expression::FunctionCall(expr) => expr.evaluate_expression(env),
             Expression::LambdaFunction(expr) => expr.evaluate_expression(env),
+            Expression::ObjectExpression(expr) => expr.evaluate_expression(env),
+            Expression::PropAccess(expr) => expr.evaluate_expression(env),
         }
     }
 }
@@ -268,20 +282,14 @@ impl EvalExpr for Assign {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         let expression_value = self.value.evaluate_expression(env)?;
 
-        if let Expression::VariableExpression(variable) = &*self.left {
-            let name = &variable.token.lexeme;
+        let rf = match &*self.left {
+            Expression::VariableExpression(variable) => variable.evaluate_ref(env)?,
+            Expression::IndexExpression(index_expr) => index_expr.evaluate_ref(env)?,
+            Expression::PropAccess(prop) => prop.evaluate_ref(env)?,
+            _ => unreachable!(),
+        };
 
-            if !env.borrow().global_contains(&name) {
-                return Err(RuntimeError::UndefinedVariable(variable.token.clone()));
-            }
-
-            env.borrow_mut().assign(name, expression_value.clone());
-        }
-
-        if let Expression::IndexExpression(index_expression) = &*self.left {
-            let rf = index_expression.evaluate_ref(env)?;
-            *rf.borrow_mut() = expression_value.clone();
-        }
+        *rf.borrow_mut() = expression_value.clone();
 
         Ok(expression_value)
     }
@@ -301,40 +309,65 @@ impl EvalExpr for Array {
     }
 }
 
+impl EvalExpr for Object {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let mut values: HashMap<String, RefVal> = HashMap::new();
+
+        for (token, expression) in &self.props {
+            let name = match &token.value {
+                TokenType::String(value) => value,
+                _ => &token.lexeme,
+            };
+            let rf = Rc::new(RefCell::new(expression.evaluate_expression(env)?));
+
+            values.insert(name.to_owned(), rf);
+        }
+
+        Ok(Value::Object(super::value::Object { values }))
+    }
+}
+
 impl EvalExpr for Index {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         let expression = self.expression.evaluate_expression(env)?;
         let index_expression = self.index.evaluate_expression(env)?;
 
-        let index = match index_expression {
-            Value::Number(index) => {
-                if index < 0.0 {
-                    return Err(RuntimeError::InvalidIndex(self.token.clone()));
-                }
-                index as usize
-            }
-            _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
-        };
+        if let Value::Object(object) = expression {
+            let index = match index_expression {
+                Value::Number(value) => value.to_string(),
+                Value::String(value) => value,
+                _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
+            };
 
-        let value = match expression {
-            Value::Array(array) => {
-                if let Some(value) = array.get(index) {
-                    value.borrow().clone()
-                } else {
-                    Value::Null
-                }
-            }
-            Value::String(string) => {
-                if let Some(value) = string.chars().nth(index) {
-                    Value::String(value.to_string())
-                } else {
-                    Value::Null
-                }
-            }
-            _ => return Err(RuntimeError::UnindexableType(self.token.clone())),
-        };
+            let value = if let Some(value) = object.values.get(&index) {
+                value.borrow().clone()
+            } else {
+                Value::Null
+            };
 
-        Ok(value)
+            Ok(value)
+        } else {
+            let index = get_numerical_index(&self, index_expression)?;
+            let value = match expression {
+                Value::Array(array) => {
+                    if let Some(value) = array.get(index) {
+                        value.borrow().clone()
+                    } else {
+                        Value::Null
+                    }
+                }
+                Value::String(string) => {
+                    if let Some(value) = string.chars().nth(index) {
+                        Value::String(value.to_string())
+                    } else {
+                        Value::Null
+                    }
+                }
+                _ => return Err(RuntimeError::UnindexableType(self.token.clone())),
+            };
+
+            Ok(value)
+        }
     }
 }
 
@@ -343,28 +376,82 @@ impl EvalRef for Index {
         let expression_ref = match &*self.expression {
             Expression::VariableExpression(variable) => variable.evaluate_ref(env)?,
             Expression::IndexExpression(index_expr) => index_expr.evaluate_ref(env)?,
+            Expression::PropAccess(prop) => prop.evaluate_ref(env)?,
             _ => return Err(RuntimeError::InvalidAssignment(self.token.clone())),
         };
         let index_expression = self.index.evaluate_expression(env)?;
-        let index = match index_expression {
-            Value::Number(index) => {
-                if index < 0.0 {
-                    return Err(RuntimeError::InvalidIndex(self.token.clone()));
-                }
-                index as usize
-            }
-            _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
-        };
         let expression = &mut *expression_ref.borrow_mut();
 
         match expression {
             Value::Array(array) => {
+                let index = get_numerical_index(&self, index_expression)?;
                 if index >= array.len() {
                     array.resize_with(index + 1, || Rc::new(RefCell::new(Value::Null)))
                 }
+
                 Ok(array[index].clone())
             }
-            _ => Err(RuntimeError::NotAnArray(self.token.clone())),
+            Value::Object(object) => {
+                let index = match index_expression {
+                    Value::Number(value) => value.to_string(),
+                    Value::String(value) => value,
+                    _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
+                };
+
+                if let Some(value) = object.values.get(&index) {
+                    Ok(value.clone())
+                } else {
+                    let rf = Rc::new(RefCell::new(Value::Null));
+                    object.values.insert(index, rf.clone());
+                    Ok(rf)
+                }
+            }
+            _ => Err(RuntimeError::InvalidAssignment(self.token.clone())),
+        }
+    }
+}
+
+impl EvalExpr for Access {
+    fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
+        let expression = self.expression.evaluate_expression(env)?;
+        let property = &self.prop.lexeme;
+
+        let value = match expression {
+            Value::Object(object) => {
+                if let Some(value) = object.values.get(property) {
+                    value.borrow().clone()
+                } else {
+                    Value::Null
+                }
+            }
+            _ => return Err(RuntimeError::NotAnObject(self.token.clone())),
+        };
+
+        Ok(value)
+    }
+}
+
+impl EvalRef for Access {
+    fn evaluate_ref(&self, env: &RefEnv) -> Result<RefVal, RuntimeError> {
+        let expression_ref = match &*self.expression {
+            Expression::VariableExpression(variable) => variable.evaluate_ref(env)?,
+            Expression::IndexExpression(index_expr) => index_expr.evaluate_ref(env)?,
+            Expression::PropAccess(prop) => prop.evaluate_ref(env)?,
+            _ => return Err(RuntimeError::InvalidAssignment(self.token.clone())),
+        };
+        let expression = &mut *expression_ref.borrow_mut();
+
+        if let Value::Object(object) = expression {
+            let prop = &self.prop.lexeme;
+            if let Some(value) = object.values.get(prop) {
+                Ok(value.clone())
+            } else {
+                let rf = Rc::new(RefCell::new(Value::Null));
+                object.values.insert(prop.to_owned(), rf.clone());
+                Ok(rf)
+            }
+        } else {
+            Err(RuntimeError::NotAnObject(self.token.clone()))
         }
     }
 }
@@ -832,5 +919,34 @@ mod test {
 
         assert_eq!(get("a"), Value::String("hi".to_owned()));
         assert_eq!(get("b"), Value::String("here".to_owned()));
+    }
+
+    #[test]
+    fn test_object() {
+        let source = "
+            set me = {
+                name: 'luckas',
+                age: 17,
+                salute: lambda(other) 'hello ' + other.name
+            };
+            set name = me.name;
+            set age = me['age'];
+            set other = { name: 'stranger' };
+            set salute = me.salute(other);
+            me.happy = true;
+            set emotion = me.happy;
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("name"), Value::String("luckas".to_owned()));
+        assert_eq!(get("age"), Value::Number(17.0));
+        assert_eq!(get("salute"), Value::String("hello stranger".to_owned()));
+        assert_eq!(get("emotion"), Value::Boolean(true));
     }
 }

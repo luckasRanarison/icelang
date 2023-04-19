@@ -64,6 +64,7 @@ fn repl_mode() {
             Err(err) => match err {
                 ParsingError::MissingParenthesis(_)
                 | ParsingError::MissingClosingBrace(_)
+                | ParsingError::ExpectedComma(_)
                 | ParsingError::UnexpedtedEndOfInput(_) => {
                     continue;
                 }
