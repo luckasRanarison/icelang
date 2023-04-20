@@ -39,7 +39,7 @@ pub enum RuntimeError {
     LexicalError(LexicalError),
     #[error("{0}")]
     ParsingError(ParsingError),
-    #[error("export")]
+    #[error("cannot export module in REPL mode")]
     Export(Value),
 }
 

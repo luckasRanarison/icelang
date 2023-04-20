@@ -1,3 +1,5 @@
+use nu_ansi_term::{AnsiGenericString, Color};
+
 use super::{environment::RefEnv, error::RuntimeError};
 use crate::{
     lexer::tokens::Token,
@@ -6,7 +8,7 @@ use crate::{
 use std::{
     cell::RefCell,
     collections::HashMap,
-    fmt,
+    fmt::{self},
     ops::{Add, Div, Mul, Rem, Sub},
     rc::Rc,
 };
@@ -107,6 +109,55 @@ impl Value {
             _ => false,
         }
     }
+
+    pub fn paint(&self) -> AnsiGenericString<'_, str> {
+        match self {
+            Value::Number(value) => {
+                let mut s = value.to_string();
+
+                if s.ends_with(".0") {
+                    s.truncate(s.len() - 2);
+                }
+
+                Color::LightRed.paint(s)
+            }
+            Value::String(value) => Color::LightGreen.paint(format!("\"{value}\"")),
+            Value::Boolean(value) => Color::Cyan.paint(format!("{:?}", value)),
+            Value::Null => Color::DarkGray.paint("null"),
+            Value::Array(items) => {
+                let mut s = String::new();
+                let mut iter = items.iter();
+                if let Some(item) = iter.next() {
+                    s.push_str(&format!("{}", item.as_ref().borrow().paint()));
+                    for item in iter {
+                        s.push_str(&format!(", {}", item.as_ref().borrow().paint()));
+                    }
+                }
+                Color::White.paint(format!("[{}]", s))
+            }
+            Value::Function(function) => {
+                let name = match &function.declaration.token {
+                    Some(token) => &token.lexeme,
+                    None => "anonymous",
+                };
+                Color::LightBlue.paint(format!("[Function {}]", name))
+            }
+            Value::Builtin(builtin) => {
+                Color::LightBlue.paint(format!("[Function {}]", builtin.name))
+            }
+            Value::Object(object) => {
+                let mut s = String::new();
+                let mut iter = object.values.iter();
+                if let Some((key, value)) = iter.next() {
+                    s.push_str(&format!("{}: {}", key, value.as_ref().borrow().paint()));
+                    for (key, value) in iter {
+                        s.push_str(&format!(", {}: {}", key, value.as_ref().borrow().paint()));
+                    }
+                }
+                Color::White.paint(format!("{{ {} }}", s))
+            }
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -121,7 +172,7 @@ impl fmt::Display for Value {
 
                 write!(f, "{s}")
             }
-            Value::String(value) => write!(f, "\"{value}\""),
+            Value::String(value) => write!(f, "{}", value),
             Value::Boolean(value) => write!(f, "{:?}", value),
             Value::Null => write!(f, "null"),
             Value::Array(items) => {
