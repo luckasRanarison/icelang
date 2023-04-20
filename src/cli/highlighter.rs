@@ -1,7 +1,6 @@
+use crate::lexer::utils::{is_alphabetic, is_alphanumeric, is_quote, is_standard_symbol};
 use nu_ansi_term::{Color, Style};
 use reedline::{Highlighter, StyledText};
-
-use crate::lexer::utils::{is_alphabetic, is_alphanumeric, is_quote, is_standard_symbol};
 
 pub struct IceHighlighter {
     identifier: Style,
@@ -10,6 +9,7 @@ pub struct IceHighlighter {
     string: Style,
     symbol: Style,
     method: Style,
+    comment: Style,
 }
 
 impl IceHighlighter {
@@ -21,6 +21,7 @@ impl IceHighlighter {
             symbol: Style::new().fg(Color::LightCyan),
             number: Style::new().fg(Color::LightRed),
             string: Style::new().fg(Color::LightGreen),
+            comment: Style::new().fg(Color::DarkGray),
         }
     }
 }
@@ -32,7 +33,21 @@ impl Highlighter for IceHighlighter {
 
         while let Some(char) = tokens.next() {
             if is_standard_symbol(char) {
-                buffer.push((self.symbol, char.to_string()));
+                if char == '-' {
+                    buffer.push((self.symbol, char.to_string()));
+
+                    if let Some(next) = tokens.peek() {
+                        if *next == '-' {
+                            buffer.last_mut().unwrap().0 = self.comment;
+
+                            while let Some(next) = tokens.next() {
+                                buffer.push((self.comment, next.to_string()));
+                            }
+                        }
+                    }
+                } else {
+                    buffer.push((self.symbol, char.to_string()));
+                }
             } else if is_quote(char) {
                 let quote = char;
                 buffer.push((self.string, char.to_string()));
@@ -59,7 +74,7 @@ impl Highlighter for IceHighlighter {
                 let is_keyword = match current.as_str() {
                     "set" | "true" | "false" | "null" | "and" | "or" | "if" | "else" | "match"
                     | "for" | "while" | "loop" | "in" | "break" | "continue" | "function"
-                    | "lambda" | "return" => true,
+                    | "lambda" | "return" | "self" => true,
                     _ => false,
                 };
 
