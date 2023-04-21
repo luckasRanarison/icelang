@@ -21,8 +21,9 @@ set string = "Hello World";
 set number = 123;
 set float = 1.2;
 set boolean = true;
+set range = 0 to 5; -- non inclusive
 set array = [1, 2, 3, 4];
-set undefined; -- null
+set undefined = null;
 set object = {
     prop: "value",
     another: 1,
@@ -44,18 +45,17 @@ set lambda_function = lambda(name) {
 }
 
 -- loops
+for i in 0 to 5 {
+    print("Hello World");
+}
 -- explicit step
-for(set i = 1 to 5, i+= 1) {
+for i in 0 to 6 by 2 {
     print("Hello World");
 }
 
--- non explicit, default is 1 or -1 if downwards
-for(set i = 5 to 1) {
-    if (i == 3) {
-        continue;
-    }
-
-    print("Hello World");
+-- collection loop
+for key, value in object {
+    print(char);
 }
 
 set i = 1;
@@ -75,11 +75,6 @@ loop {
     }
 }
 
--- collection loop
-foreach(item in arr) {
-    print(item);
-}
-
 set cond_1 = true;
 set cond_2 = false;
 
@@ -95,7 +90,7 @@ if (cond_1 and cond_2) {
 set a = 1;
 
 match(a) {
-    1: a = a + 2,
+    0 to 5: a = a + 2,
     2: {
         print("unreachable");    
     },

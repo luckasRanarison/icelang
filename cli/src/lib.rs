@@ -1,6 +1,9 @@
 use std::error::Error;
 
-use interpreter::{value::Value, Interpreter};
+use interpreter::{
+    value::{Range, Value},
+    Interpreter,
+};
 use lexer::Lexer;
 use nu_ansi_term::{AnsiGenericString, Color};
 use parser::Parser;
@@ -59,6 +62,24 @@ pub fn color_value<'a>(value: &Value) -> AnsiGenericString<'a, str> {
                 }
             }
             Color::White.paint(format!("{{ {} }}", s))
+        }
+        Value::Range(range) => {
+            let (start, end) = match range {
+                Range::NumberRange(value) => (
+                    Value::Number(value.start as f64),
+                    Value::Number(value.end as f64),
+                ),
+                Range::CharRange(value) => (
+                    Value::String(value.start.to_string()),
+                    Value::String(value.end.to_string()),
+                ),
+            };
+            Color::White.paint(format!(
+                "{}{}{}",
+                color_value(&start),
+                Color::LightBlue.paint(".."),
+                color_value(&end)
+            ))
         }
     }
 }

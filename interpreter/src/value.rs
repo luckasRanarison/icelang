@@ -3,10 +3,11 @@ use lexer::tokens::Token;
 use parser::ast::{Expression, FunctionDeclaration};
 
 use std::{
+    borrow::Borrow,
     cell::RefCell,
     collections::HashMap,
     fmt,
-    ops::{Add, Div, Mul, Rem, Sub},
+    ops::{self, Add, Div, Mul, Rem, Sub},
     rc::Rc,
 };
 
@@ -22,6 +23,7 @@ pub enum Value {
     Object(Object),
     Function(Function),
     Builtin(Builtin),
+    Range(Range),
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +87,34 @@ impl PartialOrd for Builtin {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Range {
+    NumberRange(ops::Range<i64>),
+    CharRange(ops::Range<char>),
+}
+
+impl PartialOrd for Range {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Range::NumberRange(a), Range::NumberRange(b)) => {
+                if a.end > b.end {
+                    Some(std::cmp::Ordering::Greater)
+                } else {
+                    Some(std::cmp::Ordering::Less)
+                }
+            }
+            (Range::CharRange(a), Range::CharRange(b)) => {
+                if a.end > b.end {
+                    Some(std::cmp::Ordering::Greater)
+                } else {
+                    Some(std::cmp::Ordering::Less)
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
 impl Value {
     pub fn get_type(&self) -> String {
         let value_type = match self {
@@ -95,6 +125,7 @@ impl Value {
             Value::Array(_) => "array",
             Value::Object(_) => "object",
             Value::Function(_) | Value::Builtin(_) => "function",
+            Value::Range(_) => "range",
         };
 
         value_type.to_string()
@@ -104,6 +135,44 @@ impl Value {
         match self {
             Value::Number(_) => true,
             _ => false,
+        }
+    }
+
+    pub fn is_iterable(&self) -> bool {
+        match self {
+            Value::String(_) | Value::Array(_) | Value::Object(_) | Value::Range(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (Value, Value)> + '_> {
+        match self {
+            Value::Range(range) => match range {
+                Range::NumberRange(value) => {
+                    Box::new(value.clone().into_iter().enumerate().map(|(key, value)| {
+                        (Value::Number(key as f64), Value::Number(value as f64))
+                    }))
+                }
+                Range::CharRange(value) => {
+                    Box::new(value.clone().into_iter().enumerate().map(|(key, value)| {
+                        (Value::Number(key as f64), Value::String(value.into()))
+                    }))
+                }
+            },
+            Value::String(string) => {
+                Box::new(string.chars().enumerate().map(|(index, value)| {
+                    (Value::Number(index as f64), Value::String(value.into()))
+                }))
+            }
+            Value::Array(array) => Box::new(array.iter().enumerate().map(|(index, value)| {
+                (Value::Number(index as f64), value.as_ref().borrow().clone())
+            })),
+            Value::Object(object) => {
+                Box::new(object.values.borrow().iter().map(|(key, value)| {
+                    (Value::String(key.clone()), value.as_ref().borrow().clone())
+                }))
+            }
+            _ => Box::new(std::iter::empty()),
         }
     }
 }
@@ -154,6 +223,19 @@ impl fmt::Display for Value {
                     }
                 }
                 write!(f, "{{ {} }}", s)
+            }
+            Value::Range(range) => {
+                let (start, end) = match range {
+                    Range::NumberRange(value) => (
+                        Value::Number(value.start as f64),
+                        Value::Number(value.end as f64),
+                    ),
+                    Range::CharRange(value) => (
+                        Value::String(value.start.to_string()),
+                        Value::String(value.end.to_string()),
+                    ),
+                };
+                write!(f, "{}..{}", start, end)
             }
         }
     }

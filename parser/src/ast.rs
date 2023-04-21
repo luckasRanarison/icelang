@@ -271,6 +271,7 @@ pub enum Statement {
     VariableDeclaration(Declaration),
     ExpressionStatement(Expression),
     BlockStatement(Block),
+    ForStatement(For),
     WhileStatement(While),
     LoopStatement(Loop),
     BreakStatement(Break),
@@ -291,6 +292,7 @@ impl fmt::Display for Statement {
             Statement::LoopStatement(s) => write!(f, "{s}"),
             Statement::FunctionDeclaration(s) => write!(f, "{s}"),
             Statement::ReturnStatement(s) => write!(f, "{s}"),
+            Statement::ForStatement(s) => write!(f, "{s}"),
         }
     }
 }
@@ -319,6 +321,25 @@ pub struct Declaration {
 impl fmt::Display for Declaration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "set {} = {}", self.name.lexeme, self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct For {
+    pub variable: (Token, Option<Token>),
+    pub iterable: Expression,
+    pub iterable_token: Token,
+    pub block: Box<Statement>,
+}
+
+impl fmt::Display for For {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let variables = if let Some(value) = &self.variable.1 {
+            format!("{}, {}", self.variable.0.lexeme, value.lexeme)
+        } else {
+            String::from(&self.variable.0.lexeme)
+        };
+        write!(f, "for {} in {} {}", variables, self.iterable, self.block)
     }
 }
 

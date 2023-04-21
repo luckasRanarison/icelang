@@ -8,9 +8,9 @@ use environment::{Environment, RefEnv};
 use error::{ControlFlow, RuntimeError};
 use lexer::{tokens::TokenType, Lexer};
 use parser::{ast::*, Parser};
-use value::{Function, RefVal, Value};
+use value::{Function, Range, RefVal, Value};
 
-use std::{cell::RefCell, collections::HashMap, f64::INFINITY, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f64::INFINITY, ops, rc::Rc};
 
 pub struct Interpreter {
     environment: RefEnv,
@@ -116,6 +116,7 @@ impl EvalStmt for Statement {
             Statement::ContinueStatement(stmt) => stmt.evaluate(env),
             Statement::FunctionDeclaration(stmt) => stmt.evaluate(env),
             Statement::ReturnStatement(stmt) => stmt.evaluate(env),
+            Statement::ForStatement(stmt) => stmt.evaluate(env),
         }
     }
 }
@@ -145,6 +146,31 @@ impl Eval for Block {
                 return statement.evaluate(&new_env);
             }
             statement.evaluate(&new_env)?;
+        }
+
+        Ok(None)
+    }
+}
+
+impl Eval for For {
+    fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
+        let value = self.iterable.evaluate_expression(env)?;
+
+        if !value.is_iterable() {
+            return Err(RuntimeError::NonIterable(self.iterable_token.clone()));
+        }
+
+        let new_env = Rc::new(RefCell::new(Environment::from(env.clone())));
+
+        for (key, value) in value.iter() {
+            if let Some(second) = &self.variable.1 {
+                new_env.borrow_mut().set(&self.variable.0.lexeme, key);
+                new_env.borrow_mut().set(&second.lexeme.clone(), value);
+            } else {
+                new_env.borrow_mut().set(&self.variable.0.lexeme, value);
+            }
+
+            self.block.evaluate(&new_env)?;
         }
 
         Ok(None)
@@ -579,6 +605,25 @@ impl EvalExpr for Binary {
             TokenType::BangEqual => Ok(Value::Boolean(left != right)),
             TokenType::And => Ok(Value::Boolean(is_truthy(&left) && is_truthy(&right))),
             TokenType::Or => Ok(Value::Boolean(is_truthy(&left) || is_truthy(&right))),
+            TokenType::To => match (left, right) {
+                (Value::Number(start), Value::Number(end)) => {
+                    let start = start as i64;
+                    let end = end as i64;
+                    let range = Range::NumberRange(ops::Range { start, end });
+                    Ok(Value::Range(range))
+                }
+                (Value::String(start), Value::String(end)) => {
+                    if start.len() == 1 && end.len() == 1 {
+                        let start = start.chars().next().unwrap();
+                        let end = end.chars().next().unwrap();
+                        let range = Range::CharRange(ops::Range { start, end });
+                        Ok(Value::Range(range))
+                    } else {
+                        Err(RuntimeError::InvalidRange(self.operator.clone()))
+                    }
+                }
+                _ => Err(RuntimeError::InvalidRange(self.operator.clone())),
+            },
             _ => unreachable!(),
         }
     }
@@ -711,10 +756,12 @@ impl EvalExpr for Call {
 #[cfg(test)]
 #[allow(unused_must_use)]
 mod test {
+    use crate::value::Object;
+
     use super::{Interpreter, Value};
     use lexer::Lexer;
     use parser::Parser;
-    use std::{cell::RefCell, rc::Rc};
+    use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     #[test]
     fn test_eval_operations() {
@@ -1026,5 +1073,56 @@ mod test {
             Value::String("Hello stranger I'm Luckas".to_owned())
         );
         assert_eq!(get("emotion"), Value::Boolean(true));
+    }
+
+    #[test]
+    fn test_for() {
+        let source = "
+            set a = ['among', 'us'];
+            set o = {};
+            for key, value in a {
+                o[value] = key
+            }
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        let mut object = Object {
+            values: HashMap::new(),
+        };
+
+        object.values.insert(
+            "among".to_owned(),
+            Rc::new(RefCell::new(Value::Number(0.0))),
+        );
+        object
+            .values
+            .insert("us".to_owned(), Rc::new(RefCell::new(Value::Number(1.0))));
+
+        assert_eq!(get("o"), Value::Object(object));
+    }
+
+    #[test]
+    fn test_range() {
+        let source = "
+            set factorial = 1;
+            for i in 1 to 6 {
+                factorial *= i;
+            }
+        ";
+        let tokens = Lexer::new(source).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let interpreter = Interpreter::new();
+        for node in ast {
+            interpreter.interpret(node);
+        }
+        let get = |name| interpreter.environment.as_ref().borrow().get(name).unwrap();
+
+        assert_eq!(get("factorial"), Value::Number(120.0));
     }
 }

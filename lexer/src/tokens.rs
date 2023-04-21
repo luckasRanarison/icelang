@@ -87,16 +87,20 @@ impl TokenType {
         matches!(self, TokenType::EqualEqual | TokenType::BangEqual)
     }
 
-    pub fn is_plus_min_mod(&self) -> bool {
+    pub fn is_range(&self) -> bool {
+        matches!(self, TokenType::To)
+    }
+
+    pub fn is_term_op(&self) -> bool {
         matches!(self, TokenType::Plus | TokenType::Minus | TokenType::Modulo)
     }
 
-    pub fn is_mutl_div(&self) -> bool {
+    pub fn is_factor_op(&self) -> bool {
         matches!(self, TokenType::Asterix | TokenType::Slash)
     }
 
     pub fn is_binary_operator(&self) -> bool {
-        self.is_comparaison() || self.is_mutl_div() || self.is_plus_min_mod()
+        self.is_comparaison() || self.is_factor_op() || self.is_term_op()
     }
 
     pub fn is_unary(&self) -> bool {

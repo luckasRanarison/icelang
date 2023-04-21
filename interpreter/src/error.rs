@@ -29,9 +29,13 @@ pub enum RuntimeError {
     InvalidArgument(usize, usize, Token),
     #[error("invalid assignment at line {}", .0.pos)]
     InvalidAssignment(Token),
-    #[error("module '{0}' not found at line {}", .1.pos)]
+    #[error("invalid range at line {}", .0.pos)]
+    InvalidRange(Token),
+    #[error("module '{0}' not found at {}", .1.pos)]
     ModuleNotFound(String, Token),
-    #[error("invalid path '{0}' at line {}", .1.pos)]
+    #[error("non-iterable type at {}", .0.pos)]
+    NonIterable(Token),
+    #[error("invalid path '{0}' at {}", .1.pos)]
     InvalidPath(Value, Token),
     #[error("{0}")]
     LexicalError(LexicalError),

@@ -73,8 +73,8 @@ impl Highlighter for IceHighlighter {
 
                 let is_keyword = match current.as_str() {
                     "set" | "true" | "false" | "null" | "and" | "or" | "if" | "else" | "match"
-                    | "for" | "while" | "loop" | "in" | "break" | "continue" | "function"
-                    | "lambda" | "return" | "self" => true,
+                    | "for" | "to" | "while" | "loop" | "in" | "break" | "continue"
+                    | "function" | "lambda" | "return" | "self" => true,
                     _ => false,
                 };
 

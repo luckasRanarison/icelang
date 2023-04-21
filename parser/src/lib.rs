@@ -60,6 +60,7 @@ impl<'a> Parser<'a> {
         let statement = match self.current_token.value {
             TokenType::Set => self.parse_variable_declaration()?,
             TokenType::LeftBrace => self.parse_block()?,
+            TokenType::For => self.parse_for()?,
             TokenType::While => self.parse_while()?,
             TokenType::Loop => self.parse_loop()?,
             TokenType::Break => self.parse_break()?,
@@ -127,6 +128,44 @@ impl<'a> Parser<'a> {
         self.advance();
 
         Ok(statement)
+    }
+
+    fn parse_for(&mut self) -> Result<Statement, ParsingError> {
+        self.advance();
+        let key = if self.current_token.value.is_identifier() {
+            self.clone_token()
+        } else {
+            return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
+        };
+        self.advance();
+
+        let mut value = None;
+        if self.current_token.value == TokenType::Comma {
+            self.advance();
+            if !self.current_token.value.is_identifier() {
+                return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
+            }
+            value = Some(self.clone_token());
+            self.advance();
+        }
+
+        if self.current_token.value != TokenType::In {
+            return Err(ParsingError::ExpectedIn(self.clone_token()));
+        }
+        self.advance();
+
+        let iterable_token = self.clone_token();
+        let iterable = self.parse_expression()?;
+        let block = Box::new(self.parse_block()?);
+
+        let for_statement = Statement::ForStatement(For {
+            variable: (key, value),
+            iterable,
+            iterable_token,
+            block,
+        });
+
+        Ok(for_statement)
     }
 
     fn parse_while(&mut self) -> Result<Statement, ParsingError> {
@@ -305,7 +344,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comparaison(&mut self) -> Result<Expression, ParsingError> {
-        let expression = self.parse_term()?;
+        let expression = self.parse_range()?;
 
         if self.current_token.value.is_comparaison() {
             let operator = self.clone_token();
@@ -327,10 +366,33 @@ impl<'a> Parser<'a> {
         Ok(expression)
     }
 
+    fn parse_range(&mut self) -> Result<Expression, ParsingError> {
+        let expression = self.parse_term()?;
+
+        if self.current_token.value.is_range() {
+            let operator = self.clone_token();
+            self.advance();
+
+            if self.current_token.value.is_eof() {
+                return Err(ParsingError::MissingRightOperand(operator));
+            }
+
+            let right = self.parse_term()?;
+
+            return Ok(Expression::BinaryExpression(Binary {
+                left: Box::new(expression),
+                operator,
+                right: Box::new(right),
+            }));
+        }
+
+        Ok(expression)
+    }
+
     fn parse_term(&mut self) -> Result<Expression, ParsingError> {
         let expression = self.parse_factor()?;
 
-        if self.current_token.value.is_plus_min_mod() {
+        if self.current_token.value.is_term_op() {
             let operator = self.clone_token();
             self.advance();
 
@@ -353,7 +415,7 @@ impl<'a> Parser<'a> {
     fn parse_factor(&mut self) -> Result<Expression, ParsingError> {
         let expression = self.parse_unary()?;
 
-        if self.current_token.value.is_mutl_div() {
+        if self.current_token.value.is_factor_op() {
             let operator = self.clone_token();
             self.advance();
 
@@ -971,6 +1033,31 @@ mod test {
             object.prop.method()
         ";
         let expected = "object.prop.method()";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+    }
+
+    #[test]
+    fn test_for() {
+        let stmt = "
+            for i in [0, 1, 2] {
+                print(i) 
+            }
+        ";
+        let expected = "for i in [0, 1, 2] { print(i); }";
+        let tokens = Lexer::new(stmt).tokenize().unwrap();
+        let ast = Parser::new(&tokens).parse().unwrap();
+        let node = ast.first().unwrap();
+        assert_eq!(node.to_string(), expected);
+
+        let stmt = "
+            for key, value in object {
+                print(key, value) 
+            }
+        ";
+        let expected = "for key, value in object { print(key, value); }";
         let tokens = Lexer::new(stmt).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
         let node = ast.first().unwrap();
