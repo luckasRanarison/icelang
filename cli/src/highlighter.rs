@@ -1,4 +1,4 @@
-use crate::lexer::utils::{is_alphabetic, is_alphanumeric, is_quote, is_standard_symbol};
+use lexer::utils::{is_alphabetic, is_alphanumeric, is_quote, is_standard_symbol};
 use nu_ansi_term::{Color, Style};
 use reedline::{Highlighter, StyledText};
 

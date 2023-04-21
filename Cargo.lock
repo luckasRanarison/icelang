@@ -63,6 +63,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+dependencies = [
+ "interpreter",
+ "lexer",
+ "nu-ansi-term",
+ "parser",
+ "reedline",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -226,8 +237,21 @@ dependencies = [
 name = "icelang"
 version = "0.1.0"
 dependencies = [
+ "cli",
+ "interpreter",
+ "lexer",
  "nu-ansi-term",
+ "parser",
  "reedline",
+ "thiserror",
+]
+
+[[package]]
+name = "interpreter"
+version = "0.1.0"
+dependencies = [
+ "lexer",
+ "parser",
  "thiserror",
 ]
 
@@ -258,6 +282,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "445dde2150c55e483f3d8416706b97ec8e8237c307e5b7b4b8dd15e6af2a0730"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "lexer"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -367,6 +398,14 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "lexer",
+ "thiserror",
 ]
 
 [[package]]

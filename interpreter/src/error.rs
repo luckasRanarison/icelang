@@ -1,8 +1,6 @@
 use super::value::Value;
-use crate::{
-    lexer::{errors::LexicalError, tokens::Token, utils::Position},
-    parser::error::ParsingError,
-};
+use lexer::{errors::LexicalError, tokens::Token, utils::Position};
+use parser::error::ParsingError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

@@ -1,10 +1,11 @@
-use super::{
+use crate::{
     environment::RefEnv,
     error::RuntimeError,
-    interpreter::Interpreter,
     value::{Builtin, Value},
+    EvalExpr, Interpreter,
 };
-use crate::{lexer::tokens::Token, parser::ast::Expression, runtime::interpreter::EvalExpr};
+use lexer::tokens::Token;
+use parser::ast::Expression;
 use std::{f64::INFINITY, fs::read_to_string};
 
 pub fn get_builtins() -> Vec<Builtin> {

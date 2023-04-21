@@ -1,0 +1,13 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["LIOKA Ranarison Fiderana <luckasranarison@gmail.com>"]
+
+[dependencies]
+nu-ansi-term = "0.47.0"
+reedline = "0.18.0"
+
+lexer = { path = "../lexer" }
+parser = { path = "../parser" }
+interpreter = { path = "../interpreter" }

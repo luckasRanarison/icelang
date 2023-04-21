@@ -1,15 +1,16 @@
-use std::{cell::RefCell, collections::HashMap, f64::INFINITY, rc::Rc};
+pub mod builtin;
+pub mod environment;
+pub mod error;
+pub mod value;
 
-use super::{
-    builtin::get_builtins,
-    environment::{Environment, RefEnv},
-    error::{ControlFlow, RuntimeError},
-    value::{Function, RefVal, Value},
-};
-use crate::{
-    lexer::{tokens::TokenType, Lexer},
-    parser::{ast::*, Parser},
-};
+use builtin::get_builtins;
+use environment::{Environment, RefEnv};
+use error::{ControlFlow, RuntimeError};
+use lexer::{tokens::TokenType, Lexer};
+use parser::{ast::*, Parser};
+use value::{Function, RefVal, Value};
+
+use std::{cell::RefCell, collections::HashMap, f64::INFINITY, rc::Rc};
 
 pub struct Interpreter {
     environment: RefEnv,
@@ -164,9 +165,9 @@ impl Eval for While {
                         ControlFlow::Break(_) => break,
                         ControlFlow::Continue(_) => continue,
                         ControlFlow::Return(value, token) => {
-                            return Err(RuntimeError::ControlFlow(
-                                super::error::ControlFlow::Return(value, token),
-                            ))
+                            return Err(RuntimeError::ControlFlow(ControlFlow::Return(
+                                value, token,
+                            )))
                         }
                     },
                     _ => return Err(error),
@@ -187,9 +188,9 @@ impl Eval for Loop {
                         ControlFlow::Break(_) => break,
                         ControlFlow::Continue(_) => continue,
                         ControlFlow::Return(value, token) => {
-                            return Err(RuntimeError::ControlFlow(
-                                super::error::ControlFlow::Return(value, token),
-                            ))
+                            return Err(RuntimeError::ControlFlow(ControlFlow::Return(
+                                value, token,
+                            )))
                         }
                     },
                     _ => return Err(error),
@@ -373,7 +374,7 @@ impl EvalExpr for Object {
             values.insert(name.to_owned(), rf);
         }
 
-        Ok(Value::Object(super::value::Object { values }))
+        Ok(Value::Object(self::value::Object { values }))
     }
 }
 
@@ -710,8 +711,9 @@ impl EvalExpr for Call {
 #[cfg(test)]
 #[allow(unused_must_use)]
 mod test {
-    use super::Interpreter;
-    use crate::{lexer::Lexer, parser::Parser, runtime::value::Value};
+    use super::{Interpreter, Value};
+    use lexer::Lexer;
+    use parser::Parser;
     use std::{cell::RefCell, rc::Rc};
 
     #[test]

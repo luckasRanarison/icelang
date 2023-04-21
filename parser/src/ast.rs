@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::lexer::tokens::Token;
+use lexer::tokens::Token;
 
 #[derive(Debug, Clone)]
 pub enum Expression {

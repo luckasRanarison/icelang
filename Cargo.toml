@@ -2,14 +2,24 @@
 name = "icelang"
 version = "0.1.0"
 edition = "2021"
-authors = ["LIOKA Ranarison Fiderana"]
+authors = ["LIOKA Ranarison Fiderana <luckasranarison@gmail.com>"]
 keywords = ["scripting-language", "interpreter"]
 categories = ["interpreter"]
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "icelang"
+path = "src/main.rs"
+
+[workspace]
+members = ["cli", "lexer", "parser", "interpreter"]
 
 [dependencies]
 nu-ansi-term = "0.47.0"
 reedline = "0.18.0"
 thiserror = "1.0.40"
+
+cli = { path = "cli"}
+lexer = { path = "lexer"}
+parser = { path = "parser"}
+interpreter = { path = "interpreter"}

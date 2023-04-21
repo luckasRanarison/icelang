@@ -2,7 +2,8 @@ pub mod ast;
 pub mod error;
 
 use self::{ast::*, error::ParsingError};
-use crate::lexer::tokens::{Token, TokenType};
+
+use lexer::tokens::{Token, TokenType};
 use std::{iter::Peekable, slice::Iter, vec};
 
 pub struct Parser<'a> {
@@ -97,7 +98,13 @@ impl<'a> Parser<'a> {
             .clone()
             .filter(|token| !token.value.is_line_break());
 
-        if let Some(token) = next_three.nth(1) {
+        if let Some(token) = next_three.next() {
+            if token.value == TokenType::RightBrace {
+                return Ok(Statement::ExpressionStatement(self.parse_expression()?));
+            }
+        }
+
+        if let Some(token) = next_three.next() {
             if token.value == TokenType::Colon {
                 return Ok(Statement::ExpressionStatement(self.parse_expression()?));
             }
@@ -742,7 +749,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test {
     use super::Parser;
-    use crate::lexer::Lexer;
+    use lexer::Lexer;
 
     #[test]
     fn test_precedence() {

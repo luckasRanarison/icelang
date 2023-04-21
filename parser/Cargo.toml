@@ -1,0 +1,9 @@
+[package]
+name = "parser"
+version = "0.1.0"
+edition = "2021"
+authors = ["LIOKA Ranarison Fiderana <luckasranarison@gmail.com>"]
+
+[dependencies]
+thiserror = "1.0.40"
+lexer = { path = "../lexer" }

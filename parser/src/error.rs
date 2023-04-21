@@ -1,4 +1,4 @@
-use crate::lexer::tokens::Token;
+use lexer::tokens::Token;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

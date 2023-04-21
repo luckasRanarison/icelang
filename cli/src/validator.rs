@@ -1,9 +1,6 @@
 use reedline::{ValidationResult, Validator};
-
-use crate::{
-    lexer::Lexer,
-    parser::{error::ParsingError, Parser},
-};
+use lexer::Lexer;
+use parser::{error::ParsingError, Parser};
 
 pub struct IceValidator {}
 
