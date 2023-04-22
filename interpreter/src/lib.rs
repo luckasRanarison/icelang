@@ -3,12 +3,11 @@ pub mod environment;
 pub mod error;
 pub mod value;
 
-use builtin::get_builtins;
 use environment::{Environment, RefEnv};
 use error::{ControlFlow, RuntimeError};
 use lexer::{tokens::TokenType, Lexer};
 use parser::{ast::*, Parser};
-use value::{Function, Range, RefVal, Value};
+use value::{Builtin, Function, Range, RefVal, Value};
 
 use std::{cell::RefCell, collections::HashMap, f64::INFINITY, ops, rc::Rc};
 
@@ -19,13 +18,16 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         let environment = Rc::new(RefCell::new(Environment::new()));
-        for builtin in get_builtins() {
-            environment
-                .borrow_mut()
-                .set(builtin.name, Value::Builtin(builtin))
-        }
 
         Self { environment }
+    }
+
+    pub fn load_builtin(&self, builtins: Vec<Builtin>) {
+        for builtin in builtins {
+            self.environment
+                .borrow_mut()
+                .set(builtin.name, Value::Builtin(builtin));
+        }
     }
 
     pub fn interpret<T: Eval>(&self, node: T) -> Result<Option<Value>, RuntimeError> {

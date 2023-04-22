@@ -1,5 +1,8 @@
 use cli::{print_errror, repl_mode};
-use interpreter::Interpreter;
+use interpreter::{
+    builtin::{get_io_builtins, get_std_builtins},
+    Interpreter,
+};
 use lexer::Lexer;
 use parser::Parser;
 use std::{env, fs::read_to_string, process};
@@ -21,13 +24,14 @@ fn run_file(file_path: &String) {
     });
 
     let interpreter = Interpreter::new();
-    let mut lexer = Lexer::new(&contents);
-    let tokens = lexer.tokenize().unwrap_or_else(|err| {
+    interpreter.load_builtin(get_std_builtins());
+    interpreter.load_builtin(get_io_builtins());
+
+    let tokens = Lexer::new(&contents).tokenize().unwrap_or_else(|err| {
         print_errror("Parsing error", err);
         process::exit(1)
     });
-    let mut parser = Parser::new(&tokens);
-    let nodes = parser.parse().unwrap_or_else(|err| {
+    let nodes = Parser::new(&tokens).parse().unwrap_or_else(|err| {
         print_errror("Syntax error", err);
         process::exit(1)
     });

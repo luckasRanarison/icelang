@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use interpreter::{
+    builtin::{get_io_builtins, get_std_builtins},
     value::{Range, Value},
     Interpreter,
 };
@@ -88,6 +89,8 @@ pub fn repl_mode() {
     print!("Welcome to icelang REPL mode, MIT LICENSE (Press CTRL-C to exit)");
 
     let interpreter = Interpreter::new();
+    interpreter.load_builtin(get_std_builtins());
+    interpreter.load_builtin(get_io_builtins());
     let prompt = IcePrompt::new();
     let validator = Box::new(IceValidator::new());
     let highlighter = Box::new(IceHighlighter::new());
