@@ -149,3 +149,15 @@ Clone the repository and then enter the following commands.
     cargo install --path . # install dependencies
     cargo build --release
 ```
+
+## Todo 
+
+- [ ] WASM Playground
+
+- [ ] Vscode semantic highlight extension
+
+- [ ] Bytecode interpreter
+
+- [ ] Language server and Vscode client
+
+
