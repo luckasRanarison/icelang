@@ -1,0 +1,22 @@
+function binary_search(arr, value) {
+    set low = 0;
+    set high = length(arr) - 1;
+    
+    while (low <= high) {
+        set mid = floor((low + high) / 2);
+        if (arr[mid] == value) {
+            return mid;
+        } else if (arr[mid] < value) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    
+    return null;
+}
+
+set arr = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]
+set idx = binary_search(arr, 23)  
+
+print(idx) -- 5

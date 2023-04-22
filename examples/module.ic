@@ -1,0 +1,7 @@
+set mod = {
+    hello: lambda() {
+        print("Hello World")
+    },
+}
+
+export(mod)

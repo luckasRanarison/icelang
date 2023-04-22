@@ -246,7 +246,10 @@ pub fn get_io_builtins() -> Vec<Builtin> {
                         ))
                     }
                 };
-                let value = Interpreter::run_source(&source)?;
+                let interpreter = Interpreter::new();
+                interpreter.load_builtin(get_std_builtins());
+                interpreter.load_builtin(get_io_builtins());
+                let value = interpreter.run_source(&source)?;
 
                 Ok(value)
             },

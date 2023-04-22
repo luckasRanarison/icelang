@@ -34,8 +34,7 @@ impl Interpreter {
         Ok(node.evaluate(&self.environment)?)
     }
 
-    pub fn run_source(source: &str) -> Result<Value, RuntimeError> {
-        let interpreter = Interpreter::new();
+    pub fn run_source(&self, source: &str) -> Result<Value, RuntimeError> {
         let tokens = match Lexer::new(source).tokenize() {
             Ok(value) => value,
             Err(error) => return Err(RuntimeError::LexicalError(error)),
@@ -46,7 +45,7 @@ impl Interpreter {
         };
 
         for node in nodes {
-            if let Err(error) = interpreter.interpret(node) {
+            if let Err(error) = self.interpret(node) {
                 if let RuntimeError::Export(value) = error {
                     return Ok(value);
                 } else {

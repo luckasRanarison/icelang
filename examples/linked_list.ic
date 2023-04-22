@@ -1,0 +1,43 @@
+set Node = lambda(value) { 
+    value: value, 
+    next: null
+}
+
+set List = lambda() {
+    head: null,
+    tail: null,
+
+    add: lambda(value) {
+        set new_node = Node(value)
+
+        if (!self.head) {
+            self.head = new_node
+        } else {
+            self.tail.next = new_node
+        }
+
+        self.tail = new_node
+    },
+    
+    get: lambda(index) {
+        set node = self.head 
+
+        for i in index {
+            if (!node) {
+                break
+            }
+            node = node.next
+        }
+        
+        node
+    }
+}
+
+set list = List()
+
+list.add(1)
+list.add(2)
+list.add(3)
+list.add(4)
+
+print(list.get(2).value) -- 3

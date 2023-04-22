@@ -1,0 +1,3 @@
+set mod = import("module")
+
+mod.hello() -- print("Hello World")
