@@ -87,6 +87,104 @@ pub fn get_std_builtins() -> Vec<Builtin> {
                 Ok(value)
             },
         },
+        Builtin {
+            name: "floor",
+            args: 1,
+            function: |env: &RefEnv,
+                       token: &Token,
+                       args: &Vec<Expression>|
+             -> Result<Value, RuntimeError> {
+                let arg = &args[0];
+                let value = arg.evaluate_expression(env)?;
+                let value = match value {
+                    Value::Number(value) => Value::Number(value.floor()),
+                    _ => {
+                        return Err(RuntimeError::ExpectedButGot(
+                            "number".to_owned(),
+                            value.get_type(),
+                            token.clone(),
+                        ))
+                    }
+                };
+
+                Ok(value)
+            },
+        },
+        Builtin {
+            name: "round",
+            args: 1,
+            function: |env: &RefEnv,
+                       token: &Token,
+                       args: &Vec<Expression>|
+             -> Result<Value, RuntimeError> {
+                let arg = &args[0];
+                let value = arg.evaluate_expression(env)?;
+                let value = match value {
+                    Value::Number(value) => Value::Number(value.round()),
+                    _ => {
+                        return Err(RuntimeError::ExpectedButGot(
+                            "number".to_owned(),
+                            value.get_type(),
+                            token.clone(),
+                        ))
+                    }
+                };
+
+                Ok(value)
+            },
+        },
+        Builtin {
+            name: "ceil",
+            args: 1,
+            function: |env: &RefEnv,
+                       token: &Token,
+                       args: &Vec<Expression>|
+             -> Result<Value, RuntimeError> {
+                let arg = &args[0];
+                let value = arg.evaluate_expression(env)?;
+                let value = match value {
+                    Value::Number(value) => Value::Number(value.ceil()),
+                    _ => {
+                        return Err(RuntimeError::ExpectedButGot(
+                            "number".to_owned(),
+                            value.get_type(),
+                            token.clone(),
+                        ))
+                    }
+                };
+
+                Ok(value)
+            },
+        },
+        Builtin {
+            name: "parse_number",
+            args: 1,
+            function: |env: &RefEnv,
+                       token: &Token,
+                       args: &Vec<Expression>|
+             -> Result<Value, RuntimeError> {
+                let arg = &args[0];
+                let value = arg.evaluate_expression(env)?;
+                let value = match value {
+                    Value::String(value) => {
+                        if let Ok(number) = value.parse::<f64>() {
+                            Value::Number(number)
+                        } else {
+                            return Err(RuntimeError::InvalidNumber(token.clone()));
+                        }
+                    }
+                    _ => {
+                        return Err(RuntimeError::ExpectedButGot(
+                            "string".to_owned(),
+                            value.get_type(),
+                            token.clone(),
+                        ))
+                    }
+                };
+
+                Ok(value)
+            },
+        },
     ]
 }
 

@@ -27,10 +27,12 @@ pub enum RuntimeError {
     NotAnObject(Token),
     #[error("expected {0} argument but got {1} at {}", .2.pos)]
     InvalidArgument(usize, usize, Token),
-    #[error("invalid assignment at line {}", .0.pos)]
+    #[error("invalid assignment at {}", .0.pos)]
     InvalidAssignment(Token),
-    #[error("invalid range at line {}", .0.pos)]
+    #[error("invalid range at {}", .0.pos)]
     InvalidRange(Token),
+    #[error("invalid number parsing at {}", .0.pos)]
+    InvalidNumber(Token),
     #[error("module '{0}' not found at {}", .1.pos)]
     ModuleNotFound(String, Token),
     #[error("non-iterable type at {}", .0.pos)]

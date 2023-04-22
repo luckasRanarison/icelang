@@ -547,10 +547,7 @@ impl EvalExpr for Unary {
                     self.operator.pos,
                 )),
             },
-            TokenType::Bang => match operand {
-                Value::Boolean(value) => Ok(Value::Boolean(!value)),
-                _ => Ok(Value::Boolean(true)),
-            },
+            TokenType::Bang => Ok(Value::Boolean(!is_truthy(&operand))),
             _ => unreachable!(),
         }
     }
