@@ -14,6 +14,12 @@ See [examples](./examples/) to see some of the features in action.
 
 -- inline comment
 
+-- some conventions:
+-- filename ends with .ic
+-- semicolon ';' is optional
+-- both ' and " can be used to create strings
+-- sanke case for identifiers
+
 <--
     This
     is
@@ -21,31 +27,36 @@ See [examples](./examples/) to see some of the features in action.
     multi
     line
     comment
--->
+-->  
 
+-- module system
 set default_import = import("module_name"); -- default import
 set component = import("module_name").prop; -- import a specific object prop
 set component_with_path = import("../module_name"); -- unix like path
 
 -- data types
 set string = "Hello World";
-set number = 123;
+set integer = 123;
 set float = 1.2;
-set boolean = true;
-set range = 0 to 5; -- non inclusive
+set bool = true;
+set range = 0 to 5; -- non inclusive 
 set array = [1, 2, 3, 4];
 set undefined = null;
 set object = {
     prop: "value",
     another: 1,
-    method: lambda(self) {
-        print(self.prop);
+    method: lambda() {
+        print(self.prop); 
     }
 }
 
-object.method() -- "value"
+-- operators
+-- arithmetic
+-- + - * / % += -= *= /= %=
+-- logic
+-- ! == != > < >= <= and or
 
--- function
+-- function (hoisted)
 function hello(name) {
     print("Hello " + name);
 }
@@ -61,8 +72,9 @@ for i in 0 to 5 {
 }
 
 -- collection loop
+-- number, string, array and object
 for key, value in object {
-    print(key + ': ' + value);
+    print(key + ": " + value);
 }
 
 set i = 1;
@@ -75,7 +87,7 @@ while(i <= 5) {
 set i = 1;
 
 loop {
-    i = i + 1;
+    i += 1;
 
     if (i >= 5) {
         break;
@@ -85,7 +97,7 @@ loop {
 set cond_1 = true;
 set cond_2 = false;
 
--- conditionals
+-- conditionals 
 if (cond_1 and cond_2) {
     print("no");
 } else if (cond_1) {
@@ -94,10 +106,13 @@ if (cond_1 and cond_2) {
     print("yes");
 }
 
+-- conditionals are expressions
+set n = if (true) { 1 } else { 0 }
+
 set a = 1;
 
 match(a) {
-    0 to 5: a = a + 2,
+    0, 4, 1: a = a + 2,
     2: {
         print("unreachable");
     },
@@ -106,27 +121,27 @@ match(a) {
     },
 }
 
--- some buitin functions
+-- some builtin functions
 -- I/O
 print("Hello World");
 set input = readline();
 
 -- Utility
-type_of(a)
-parse_number("1")
-length("hello")
+type_of(a);
+parse_number("1");
+length("hello");
 
 -- Math
-sqrt(8)
-pow(2, 5)
-floor(2.5)
-round(2.5)
-ceil(2.5)
+sqrt(8);
+pow(2, 5);
+floor(2.5);
+round(2.5);
+ceil(2.5);
 
 -- module export
 set my_var = "some text";
 
--- only one export statement per file is allowed
+-- only one export per file is allowed
 export(my_var);
 ```
 
@@ -135,8 +150,8 @@ export(my_var);
 Download icelang from [release](https://github.com/luckasRanarison/icelang/releases/) or [build](##Build) it from source.
 
 ```bash
-    icelang # no arguments for REPL mode
-    icelang script.ice # to run a file
+icelang # no arguments for REPL mode
+icelang script.ic # to run a file
 ```
 
 ## Build
@@ -146,11 +161,13 @@ Download icelang from [release](https://github.com/luckasRanarison/icelang/relea
 Clone the repository and then enter the following commands.
 
 ```bash
-    cargo install --path . # install dependencies
-    cargo build --release
+cargo install --path . # install dependencies
+cargo build --release
 ```
 
 ## Todo 
+
+Some add-ons not directly related to the project itself:
 
 - [ ] WASM Playground
 
