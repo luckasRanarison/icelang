@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["LIOKA Ranarison Fiderana <luckasranarison@gmail.com>"]
 keywords = ["scripting-language", "interpreter"]
+repository = "https://github.com/luckasranarison/icelang"
 categories = ["interpreter"]
 license = "MIT"
 
@@ -12,7 +13,7 @@ name = "icelang"
 path = "src/main.rs"
 
 [workspace]
-members = ["cli", "lexer", "parser", "interpreter"]
+members = ["cli", "lexer", "parser", "interpreter", "wasm"]
 
 [dependencies]
 cli = { path = "cli"}

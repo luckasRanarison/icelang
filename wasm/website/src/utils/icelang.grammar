@@ -1,0 +1,72 @@
+@top Program { Statement* }
+
+kw<term> { @specialize[@name={term}]<Identifier, term> }
+
+Block { "{" Statement "}" }
+
+Statement {
+    BlockStatement { Block }
+    VariableDeclaration { kw<"set"> Identifier "=" Expression }
+    FunctionDeclaration { kw<"function"> Identifier "(" Params ")" Block }
+    ForStatement { kw<"for"> Identifier kw<"in"> Block }
+    WhileStatement { kw<"while"> Expression Block }
+    LoopStatement { kw<"loop"> Block }
+    ReturnStatement { kw<"return"> Expression }
+    ContinueStatement { kw<"continue"> }
+    BreakStatement { kw<"break"> }
+    Expression 
+}
+
+Params { Identifier ("," Identifier)* }
+
+Boolean { @specialize[@name=BooleanLiteral]<Identifier, "true" | "false" > }
+
+Lambda { kw<"lambda"> "(" Params ")" Block }
+
+IfExpression { kw<"if"> "(" Expression ")" Block ElseBranch }
+
+MatchExpression { kw<"match"> "(" Expression ")" "{" MatchArm ("," MatchArm)* "}" }
+
+MatchArm { Expression ":" Statement }
+
+ElseBranch  { kw<"else"> Expression }
+
+Range  { (Number | String) kw<"to"> (Number | String) }
+
+Expression {
+    Literal
+    | Lambda
+    | Range
+    | IfExpression
+    | MatchExpression
+    | FunctionCall
+    | Application { "(" Expression* ")" }
+}
+
+Literal {
+    Identifier
+    | String
+    | Number
+    | Boolean
+}
+
+@tokens {
+    @precedence {
+        Number,
+        Identifier
+    }
+
+    Number { $[0-9]+ }
+
+    Identifier { $[a-zA-Z_0-9]+ }
+
+    String { '"' (!["\\] | "\\" _)* '"' | "'" (!['\\] | '\\' _)* "'" }
+
+    LineComment { "--" ![\n]* }
+
+    space { $[ \t\n\r]+ }
+
+    "(" ")"
+}
+
+@skip { space | LineComment }

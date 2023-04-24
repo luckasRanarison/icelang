@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    .error {
+        @apply font-semibold text-nord-11;
+    }
+}
