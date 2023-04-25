@@ -4,6 +4,8 @@
 
 Icelang is a minimal, dynamically-typed scripting language inspired by Lua and Rust. It is my first attempt at writing a tree-walking interpreter and also my first Rust project. As you might expect, it was not intended for serious use. It is not fast or efficient, but it is decent enough for basic computation.
 
+Icelang is available online through a Web Assembly port of the interpreter, try it now [here](https://luckasranarison.github.io/icelang/)!
+
 ## Overview
 
 See [examples](./examples/) to see some of the features in action.
@@ -169,7 +171,7 @@ cargo build --release
 
 Some add-ons not directly related to the project itself:
 
-- [ ] WASM Playground
+- [x] WASM Playground
 
 - [ ] Vscode semantic highlight extension
 
