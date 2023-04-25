@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-    .error {
-        @apply font-semibold text-nord-11;
-    }
+@font-face {
+    font-family: "Rubik";
+    src: url("/fonts/Rubik-VariableFont_wght.ttf");
 }

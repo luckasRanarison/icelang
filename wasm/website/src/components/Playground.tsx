@@ -1,13 +1,19 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { nord } from "@uiw/codemirror-theme-nord";
 import { interprete } from "../../pkg";
 import { icelang } from "../utils/language";
-import { FaPlay, FaDesktop } from "react-icons/fa";
+import {
+  FaPlay,
+  FaDesktop,
+  FaCheckCircle,
+  FaTimesCircle,
+} from "react-icons/fa";
 
 const Playground = () => {
-  const [textValue, setTextValue] = useState("");
+  const [textValue, setTextValue] = useState('print("Hello World")');
   const [errorMessage, setErrorMessage] = useState("");
+  const outputRef = useRef<HTMLDivElement>(null);
 
   const onChange = useCallback((value: string) => {
     setTextValue(value);
@@ -20,6 +26,11 @@ const Playground = () => {
     if (error) {
       setErrorMessage(error);
     }
+
+    if (outputRef.current) {
+      const outputY = outputRef.current.offsetTop;
+      window.scrollBy({ top: outputY + 260, behavior: "smooth" });
+    }
   };
 
   const clearOutupt = () => {
@@ -31,7 +42,18 @@ const Playground = () => {
   };
 
   return (
-    <div className="p-2 w-full flex flex-col gap-3 items-center justify-center">
+    <div className="p-4 w-full flex flex-col items-center justify-center">
+      <div id="playground" className="pt-4 mb-10 w-full max-w-[700px]">
+        <div className="mb-2 text-title font-semibold text-nord-6">
+          Playground
+        </div>
+        <p className="text-nord-4 leading-7">
+          Icelang coding playground powered by Web Assembly. I/O functions like
+          import/export and readline won't work in the playground, only{" "}
+          <span className="text-nord-8">print</span> can be used with the fake
+          output.
+        </p>
+      </div>
       <div className="max-w-[700px] h-[450px] w-full overflow-scroll rounded-md relative">
         <CodeMirror
           value={textValue}
@@ -48,14 +70,30 @@ const Playground = () => {
           <FaPlay className="mr-2" size={12} /> Run
         </button>
       </div>
-      <div className="flex items-center font-bold text-nord-5 text-[1.1rem]">
-        <span>Output</span>
-        <FaDesktop className="ml-2" />
+      <div className="mt-4 px-6 py-4 w-full max-w-[700px] min-h-[300px] max-h-[300px] relative flex flex-col rounded-md text-nord-5 bg-nord-0">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center font-bold text-[1.1rem]">
+            <span>Output</span>
+            <FaDesktop className="ml-2" />
+          </div>
+          <div
+            className={`flex items-center ${
+              errorMessage ? "text-nord-11" : "text-nord-14"
+            }`}
+          >
+            {errorMessage ? <FaTimesCircle /> : <FaCheckCircle />}
+            <span className="ml-2 font-bold">
+              {errorMessage ? "Error" : "Success"}
+            </span>
+          </div>
+        </div>
+        <div
+          id="output"
+          ref={outputRef}
+          className="mt-4 h-full w-full overflow-scroll"
+        ></div>
+        <div className="font-bold text-nord-11">{errorMessage}</div>
       </div>
-      <div
-        id="output"
-        className="font-mono px-6 py-4 w-full max-w-[700px] min-h-[300px] max-h-[300px] overflow-scroll rounded-md text-nord-5 bg-nord-0"
-      ></div>
     </div>
   );
 };

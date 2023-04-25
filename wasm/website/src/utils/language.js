@@ -3,8 +3,6 @@ import {
   LRLanguage,
   LanguageSupport,
   delimitedIndent,
-  foldInside,
-  foldNodeProp,
   indentNodeProp,
 } from "@codemirror/language";
 import { completeFromList } from "@codemirror/autocomplete";
@@ -55,19 +53,32 @@ const iceCompletion = icelangLanguage.data.of({
     {
       label: "length",
       type: "function",
-      info: "Returns the length of strings, array and object",
+      info: "length(data: string | array | object): number",
+    },
+    {
+      label: "parse_number",
+      type: "function",
+      info: "parse_number(string: any): number",
     },
     {
       label: "type_of",
       type: "function",
-      info: "Returns the type of the argument",
+      info: "type_of(data: any): string",
     },
-    { label: "print", type: "function" },
-    { label: "sqrt", type: "function" },
-    { label: "pow", type: "function" },
-    { label: "floor", type: "function" },
-    { label: "round", type: "function" },
-    { label: "ceil", type: "function" },
+    {
+      label: "print",
+      type: "function",
+      info: "print(data: ...any): null",
+    },
+    { label: "sqrt", type: "function", info: "sqrt(x: number): number" },
+    {
+      label: "pow",
+      type: "function",
+      info: "pow(x: number, y: number): number",
+    },
+    { label: "floor", type: "function", info: "floor(x: number): number" },
+    { label: "round", type: "function", info: "round(x: number): number" },
+    { label: "ceil", type: "function", info: "ceil(x: number): number" },
   ]),
 });
 

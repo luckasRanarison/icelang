@@ -1,6 +1,13 @@
 import init from "../pkg";
 import { useEffect } from "react";
-import { Container, Navbar, Playground } from "./components";
+import {
+  Container,
+  Footer,
+  Landing,
+  Navbar,
+  Overview,
+  Playground,
+} from "./components";
 
 const App = () => {
   useEffect(() => {
@@ -10,7 +17,10 @@ const App = () => {
   return (
     <Container>
       <Navbar />
+      <Landing />
+      <Overview />
       <Playground />
+      <Footer />
     </Container>
   );
 };

@@ -3,6 +3,9 @@ module.exports = {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   darkMode: "class",
   theme: {
+    fontFamily: {
+      sans: ["Rubik"],
+    },
     fontSize: {
       title: "2rem",
       paragraph: "1.1rem",

@@ -1,13 +1,23 @@
+import { useEffect, useState } from "react";
 import useScroll from "../hooks/UseScroll";
 import { FaGithub } from "react-icons/fa";
 
 const Navbar = () => {
-  const { scrollY } = useScroll();
+  const { scrollY, lastY } = useScroll();
+  const [isHidden, setIsHidden] = useState(false);
+
+  useEffect(() => {
+    if (scrollY > 100 && scrollY - lastY > 0) {
+      setIsHidden(true);
+    } else {
+      setIsHidden(false);
+    }
+  }, [scrollY, lastY]);
 
   return (
     <div
-      className={`z-10 mb-2 px-8 py-4 top-0 sticky flex justify-between items-center text-nord-6 bg-nord-1 ${
-        scrollY > 10 ? "shadow-md" : ""
+      className={`z-10 mb-2 px-8 py-4 top-0 sticky flex justify-between items-center text-nord-6 bg-nord-1 duration-300 ${
+        isHidden ? "-translate-y-full" : scrollY > 100 ? "shadow-md" : ""
       }`}
     >
       <div className="flex items-center font-semibold text-[1.5rem]">
