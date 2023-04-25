@@ -29,20 +29,20 @@ pub enum ParsingError {
     ExpectedLeftParenthesis(Token),
     #[error("expected parameter name but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedParameter(Token),
-    #[error("missing closing brace '}}' at '{}'", .0.pos)]
-    MissingClosingBracket(Token),
     #[error("missing closing bracket ']' at '{}'", .0.pos)]
+    MissingClosingBracket(Token),
+    #[error("missing closing brace '}}' at '{}'", .0.pos)]
     MissingClosingBrace(Token),
     #[error("expected identifer but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedIdentifier(Token),
     #[error("expected 'in' but got '{}' at {}", .0.lexeme, .0.pos)]
     ExpectedIn(Token),
-    #[error("missing match arm expression at line {}", .0.pos)]
+    #[error("missing match arm expression at {}", .0.pos)]
     MissingArmExpression(Token),
-    #[error("missing comma ',' at line '{}'", .0.pos)]
+    #[error("missing comma ',' at '{}'", .0.pos)]
     MissingComma(Token),
-    #[error("invalid assignment target at line {}", .0.pos)]
+    #[error("invalid assignment target at {}", .0.pos)]
     InvalidAssignment(Token),
-    #[error("invalid property name at line {}", .0.pos)]
+    #[error("invalid property name at {}", .0.pos)]
     InvalidProp(Token),
 }

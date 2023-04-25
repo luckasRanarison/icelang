@@ -39,6 +39,8 @@ pub enum RuntimeError {
     NonIterable(Token),
     #[error("expected '{0}' but got '{1}' at {}", .2.pos)]
     ExpectedButGot(String, String, Token),
+    #[error("invalid argument type at {}", .0.pos)]
+    InvalidArg(Token),
     #[error("mismatched arguments type at {}", .0.pos)]
     MismatchedArg(Token),
     #[error("invalid path '{0}' at {}", .1.pos)]

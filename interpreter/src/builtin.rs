@@ -28,7 +28,7 @@ pub fn get_std_builtins() -> Vec<Builtin> {
             name: "length",
             args: 1,
             function: |env: &RefEnv,
-                       _: &Token,
+                       token: &Token,
                        args: &Vec<Expression>|
              -> Result<Value, RuntimeError> {
                 let arg = &args[0];
@@ -37,7 +37,7 @@ pub fn get_std_builtins() -> Vec<Builtin> {
                     Value::String(string) => Value::Number(string.len() as f64),
                     Value::Array(array) => Value::Number(array.len() as f64),
                     Value::Object(object) => Value::Number(object.values.len() as f64),
-                    _ => Value::Null,
+                    _ => return Err(RuntimeError::InvalidArg(token.clone())),
                 };
 
                 Ok(value)
