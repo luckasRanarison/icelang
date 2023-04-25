@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import useScroll from "../hooks/UseScroll";
 import { FaGithub } from "react-icons/fa";
+import Icon from "/icon.png";
 
 const Navbar = () => {
   const { scrollY, lastY } = useScroll();
@@ -21,7 +22,7 @@ const Navbar = () => {
       }`}
     >
       <div className="flex items-center font-semibold text-[1.5rem]">
-        <img src="/mountain.png" alt="logo" className="w-6 mr-3" />
+        <img src={Icon} alt="logo" className="w-6 mr-3" />
         <span className="text-nord-9">Ice</span>lang
       </div>
       <div>
