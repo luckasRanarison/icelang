@@ -44,7 +44,7 @@ ${t.stack}`:i}let jl=0,ns=null;function ll(){return(ns===null||ns.byteLength===0
 -- semicolon ';' is optional
 -- both ' and " can be used to create strings
 -- "set" keyword for defining variables
--- sanke case for identifiers`},{header:"Data types",paragraph:"Icelang provides basic data types and is dynamically typed.",code:`set string = "Hello World";
+-- snake case for identifiers`},{header:"Data types",paragraph:"Icelang provides basic data types and is dynamically typed.",code:`set string = "Hello World\\n"; -- supports escape characters
 set integer = 123;
 set float = 1.2;
 set bool = true;
@@ -65,7 +65,18 @@ set object = {
 variable = "value"
 array[0] = "value" -- array indexing
 object.prop = "value" -- object literal indexing
-object[variable] = "value" -- dynamic object indexing`},{header:"Conditionals",paragraph:"Conditionals in icelang are expression which means they can return values.",code:`set n = if (true) { 1 } else { 0 }
+object[variable] = "value" -- dynamic object indexing`},{header:"Conditionals",paragraph:"Conditionals in icelang are expression which means they can return values.",code:`set cond_1 = true;
+set cond_2 = false;
+
+if (cond_1 and cond_2) {
+    print("no");
+} else if (cond_2) {
+    print("no");
+} else {
+    print("yes");
+}
+
+set n = if (true) { 1 } else { 0 }
 set value = match(n) {
     0, 4, 1: n + 2,
     2: {
@@ -110,8 +121,7 @@ set component_with_path = import("../module_name"); -- unix like path
 -- module export
 set my_var = "some text";
 -- only one export per file is allowed
-export(my_var);
-    `},{header:"Builtins",paragraph:"Some builtin functions:",code:`-- I/O
+export(my_var);`},{header:"Builtins",paragraph:"Some builtin functions:",code:`-- I/O
 print("Hello World");
 set input = readline();
 
