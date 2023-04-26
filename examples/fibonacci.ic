@@ -1,14 +1,14 @@
 function fib(n) {
     if (n <= 1) {
-        return n
+        return n;
     }
     
     fib(n-1) + fib(n-2)
 }
 
-print("Enter the length of the sequence:")
-set n = readline()
+print("Enter the length of the sequence:");
+set n = readline();
 
 for i in 0 to parse_number(n) {
-    print(fib(i))
+    print(fib(i));
 }

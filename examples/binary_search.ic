@@ -13,10 +13,10 @@ function binary_search(arr, value) {
         }
     }
     
-    return null;
+    null
 }
 
-set arr = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]
-set idx = binary_search(arr, 23)  
+set arr = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91];
+set idx = binary_search(arr, 23); 
 
-print(idx) -- 5
+print(idx); -- 5

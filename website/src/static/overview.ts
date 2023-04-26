@@ -9,12 +9,12 @@ export const section = [
 -- semicolon ';' is optional
 -- both ' and " can be used to create strings
 -- "set" keyword for defining variables
--- sanke case for identifiers`,
+-- snake case for identifiers`,
   },
   {
     header: "Data types",
     paragraph: "Icelang provides basic data types and is dynamically typed.",
-    code: `set string = "Hello World";
+    code: `set string = "Hello World\\n"; -- supports escape characters
 set integer = 123;
 set float = 1.2;
 set bool = true;
@@ -46,7 +46,18 @@ object[variable] = "value" -- dynamic object indexing`,
     header: "Conditionals",
     paragraph:
       "Conditionals in icelang are expression which means they can return values.",
-    code: `set n = if (true) { 1 } else { 0 }
+    code: `set cond_1 = true;
+set cond_2 = false;
+
+if (cond_1 and cond_2) {
+    print("no");
+} else if (cond_2) {
+    print("no");
+} else {
+    print("yes");
+}
+
+set n = if (true) { 1 } else { 0 }
 set value = match(n) {
     0, 4, 1: n + 2,
     2: {
@@ -106,8 +117,7 @@ set component_with_path = import("../module_name"); -- unix like path
 -- module export
 set my_var = "some text";
 -- only one export per file is allowed
-export(my_var);
-    `,
+export(my_var);`,
   },
   {
     header: "Builtins",

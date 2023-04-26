@@ -1,7 +1,7 @@
 set mod = {
     hello: lambda() {
-        print("Hello World")
+        print("Hello World");
     },
 }
 
-export(mod)
+export(mod);

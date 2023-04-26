@@ -12,29 +12,89 @@
     comment 
 -->
 
-set default_import = import("module_name"); -- default import
-set component = import("module_name").prop; -- import a specific object prop
-set component_with_path = import("../module_name"); -- unix like path
+-- Some conventions:
+-- filename ends with .ic
+-- semicolon ';' is optional
+-- both ' and " can be used to create strings
+-- "set" keyword for defining variables
+-- snake case for identifiers
 
--- data types 
-set string = "Hello World";
-set number = 123;
+-- Data types
+set string = "Hello World\n"; -- supports escape characters
+set integer = 123;
 set float = 1.2;
-set boolean = true;
-set range = 0 to 5; -- non inclusive
+set bool = true;
+set range = 0 to 5; -- non inclusive 
 set array = [1, 2, 3, 4];
 set undefined = null;
 set object = {
     prop: "value",
     another: 1,
-    method: lambda(self) {
-        print(self.prop);
-    } 
+    method: lambda() {
+        print(self.prop); 
+    }
 }
 
-object.method() -- "value"
+-- Operators
+-- arithmetic
++ - * / % += -= *= /= %=
+-- logic
+! == != > < >= <= and or
+-- assignments
+variable = "value"
+array[0] = "value" -- array indexing
+object.prop = "value" -- object literal indexing
+object[variable] = "value" -- dynamic object indexing
 
--- function
+-- Conditionals
+set cond_1 = true;
+set cond_2 = false;
+
+if (cond_1 and cond_2) {
+    print("no");
+} else if (cond_2) {
+    print("no");
+} else {
+    print("yes");
+}
+
+n = if (true) { 1 } else { 0 }
+
+set value = match(n) {
+    0, 4, 1: n + 2,
+    2: {
+        -- block statement
+        print("unreachable");
+    },
+    _: print("Default") ,
+} 
+
+-- Loops
+for i in 0 to 5 {
+    print("Hello World");
+}
+
+-- collection loop: number, string, array and object
+for key, value in object {
+    print(key + ": " + value);
+}
+
+set i = 1;
+while(i <= 5) {
+    print("Hello World");
+    i += 1;
+}
+
+set j = 1;
+loop {
+    j += 1;
+    if (j >= 5) {
+        break;
+    }
+}
+
+-- Functions
+-- function statement (hoisted)
 function hello(name) {
     print("Hello " + name);
 }
@@ -44,63 +104,30 @@ set lambda_function = lambda(name) {
     print("Hello " + name);
 }
 
--- loops
-for i in 0 to 5 {
-    print("Hello World");
-}
--- explicit step
-for i in 0 to 6 by 2 {
-    print("Hello World");
-}
-
--- collection loop
-for key, value in object {
-    print(char);
-}
-
-set i = 1;
-
-while(i <= 5) {
-    print("Hello World");
-    i += 1;
-}
-
-set i = 1;
-
-loop {
-    i = i + 1;
-
-    if (i >= 5) {
-        break;
-    }
-}
-
-set cond_1 = true;
-set cond_2 = false;
-
--- conditionals
-if (cond_1 and cond_2) {
-    print("no");
-} else if (cond_1) {
-    print("yes");
-} else {
-    print("yes");
-}
-
-set a = 1;
-
-match(a) {
-    0 to 5: a = a + 2,
-    2: {
-        print("unreachable");    
-    },
-    _: {
-        print("Default");
-    },
-}
+-- Module system
+-- module import
+set default_import = import("module_name"); -- default import
+set component = import("module_name").prop; -- import a specific object prop
+set component_with_path = import("../module_name"); -- unix like path
 
 -- module export
 set my_var = "some text";
-
--- only one export statement per file is allowed
+-- only one export per file is allowed
 export(my_var);
+
+-- Builtins
+-- I/O
+print("Hello World");
+set input = readline();
+
+-- Utility
+type_of(a);
+parse_number("1");
+length("hello");
+
+-- Math
+sqrt(8);
+pow(2, 5);
+floor(2.5);
+round(2.5);
+ceil(2.5);

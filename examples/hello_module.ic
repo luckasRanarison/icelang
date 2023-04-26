@@ -1,3 +1,3 @@
-set mod = import("module")
+set mod = import("module");
 
-mod.hello() -- print("Hello World")
+mod.hello(); -- print("Hello World")
