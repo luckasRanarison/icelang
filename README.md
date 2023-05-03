@@ -30,8 +30,9 @@ icelang script.ic # to run a file
 To build the icelang executable you have to clone the repository then enter the following commands:
 
 ```bash
-cargo install --path . # install dependencies
-cargo build --release
+cargo install --path . # build and install in ~/.cargo/bin
+# or
+cargo build --release # build inside target/release
 ```
 
 ### Website and WASM binaries
@@ -39,7 +40,6 @@ cargo build --release
 To build the website you must have npm and wasm-pack installed.
 
 ```bash
-cargo install --path . # install dependencies
 cd wasm/
 wasm-pack build --target web --out-dir ../website/pkg # build the wasm binaries
 cd ../website/
