@@ -3,11 +3,13 @@ pub mod environment;
 pub mod error;
 pub mod value;
 
+use crate::builtin::Builtin;
+
 use environment::{Environment, RefEnv};
 use error::{ControlFlow, RuntimeError};
 use lexer::{tokens::TokenType, Lexer};
 use parser::{ast::*, Parser};
-use value::{Builtin, Function, Range, RefVal, Value};
+use value::{Function, Range, RefVal, Value};
 
 use std::{cell::RefCell, collections::HashMap, f64::INFINITY, ops, rc::Rc};
 
@@ -567,13 +569,21 @@ impl EvalExpr for Binary {
                     self.operator.pos,
                 )),
             },
-            TokenType::Slash => match left / right {
-                Some(value) => Ok(value),
-                None => Err(RuntimeError::InvalidOperation(
-                    format!("can't divide a '{}' by a '{}'", left_type, right_type),
-                    self.operator.pos,
-                )),
-            },
+            TokenType::Slash => {
+                if let Value::Number(right) = right {
+                    if right == 0.0 {
+                        return Err(RuntimeError::DivisionByZero(self.operator.pos));
+                    }
+                }
+
+                match left / right {
+                    Some(value) => Ok(value),
+                    None => Err(RuntimeError::InvalidOperation(
+                        format!("can't divide a '{}' by a '{}'", left_type, right_type),
+                        self.operator.pos,
+                    )),
+                }
+            }
             TokenType::Minus => match left - right {
                 Some(value) => Ok(value),
                 None => Err(RuntimeError::InvalidOperation(

@@ -25,7 +25,7 @@ impl fmt::Display for Position {
             format!("{}-{}", self.col_start, self.col_end)
         };
 
-        write!(f, "line {} col {}", self.line, col)
+        write!(f, "line {}, col {}", self.line, col)
     }
 }
 

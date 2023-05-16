@@ -1,6 +1,6 @@
-use super::{environment::RefEnv, error::RuntimeError};
-use lexer::tokens::Token;
-use parser::ast::{Expression, FunctionDeclaration};
+use crate::builtin::Builtin;
+
+use parser::ast::FunctionDeclaration;
 
 use std::{
     borrow::Borrow,
@@ -55,35 +55,6 @@ impl PartialOrd for Object {
         } else {
             Some(std::cmp::Ordering::Less)
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct Builtin {
-    pub name: &'static str,
-    pub args: usize,
-    pub function: fn(&RefEnv, token: &Token, &Vec<Expression>) -> Result<Value, RuntimeError>,
-}
-
-impl fmt::Debug for Builtin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Builtin")
-            .field("name", &self.name)
-            .field("args", &self.args)
-            .field("function", &"<native function>")
-            .finish()
-    }
-}
-
-impl PartialEq for Builtin {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl PartialOrd for Builtin {
-    fn partial_cmp(&self, _other: &Self) -> Option<std::cmp::Ordering> {
-        Some(std::cmp::Ordering::Less)
     }
 }
 

@@ -5,45 +5,47 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
-    #[error("expected '{0}', but found '{1}' at {2}")]
+    #[error("expected '{0}', but found '{1}' ({2})")]
     TypeExpection(String, String, Position),
-    #[error("{0} at {1}")]
+    #[error("{0} at ({1})")]
     InvalidOperation(String, Position),
-    #[error("undefined variable '{}' at {}", .0.lexeme, .0.pos)]
+    #[error("division by zero ({0})")]
+    DivisionByZero(Position),
+    #[error("undefined variable '{}' ({})", .0.lexeme, .0.pos)]
     UndefinedVariable(Token),
-    #[error("redeclaring existing identifier '{}' at {}", .0.lexeme, .0.pos)]
+    #[error("redeclaring existing identifier '{}' ({})", .0.lexeme, .0.pos)]
     RedeclaringIdentifier(Token),
     #[error("{0}")]
     ControlFlow(ControlFlow),
-    #[error("trying to index an unindexable object at {}", .0.pos)]
+    #[error("trying to index an unindexable object ({})", .0.pos)]
     UnindexableType(Token),
-    #[error("invalid index value at {}", .0.pos)]
+    #[error("invalid index value ({})", .0.pos)]
     InvalidIndex(Token),
-    #[error("trying to call a non function expression at {}", .0.pos)]
+    #[error("trying to call a non function expression ({})", .0.pos)]
     NotFunciton(Token),
-    #[error("trying to assign index value to a non-array variable at {}", .0.pos)]
+    #[error("trying to assign index value to a non-array variable ({})", .0.pos)]
     NotAnArray(Token),
-    #[error("calling property on a non-object type at {}", .0.pos)]
+    #[error("calling property on a non-object type ({})", .0.pos)]
     NotAnObject(Token),
-    #[error("expected {0} argument but got {1} at {}", .2.pos)]
+    #[error("expected {0} argument but got {1} ({})", .2.pos)]
     InvalidArgument(usize, usize, Token),
-    #[error("invalid assignment at {}", .0.pos)]
+    #[error("invalid assignment ({})", .0.pos)]
     InvalidAssignment(Token),
-    #[error("invalid range at {}", .0.pos)]
+    #[error("invalid range ({})", .0.pos)]
     InvalidRange(Token),
-    #[error("invalid number parsing at {}", .0.pos)]
+    #[error("invalid number parsing ({})", .0.pos)]
     InvalidNumber(Token),
-    #[error("module '{0}' not found at {}", .1.pos)]
+    #[error("module '{0}' not found ({})", .1.pos)]
     ModuleNotFound(String, Token),
-    #[error("non-iterable type at {}", .0.pos)]
+    #[error("non-iterable type ({})", .0.pos)]
     NonIterable(Token),
-    #[error("expected '{0}' but got '{1}' at {}", .2.pos)]
+    #[error("expected '{0}' but got '{1}' ({})", .2.pos)]
     ExpectedButGot(String, String, Token),
-    #[error("invalid argument type at {}", .0.pos)]
+    #[error("invalid argument type ({})", .0.pos)]
     InvalidArg(Token),
-    #[error("mismatched arguments type at {}", .0.pos)]
+    #[error("mismatched arguments type ({})", .0.pos)]
     MismatchedArg(Token),
-    #[error("invalid path '{0}' at {}", .1.pos)]
+    #[error("invalid path '{0}' ({})", .1.pos)]
     InvalidPath(Value, Token),
     #[error("{0}")]
     LexicalError(LexicalError),
