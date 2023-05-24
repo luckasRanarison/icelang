@@ -202,26 +202,28 @@ fn io_readline(_: &RefEnv, _: &Token, _: &Vec<Expression>) -> Result<Value, Runt
 fn import(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let mut value = arg.evaluate_expression(env)?;
-    let file_path = if let Value::String(value) = &mut value {
-        if value.ends_with(".ic") {
-            value
-        } else {
-            value.push_str(".ic");
+    let file_path = match &mut value {
+        Value::String(value) => {
+            if !value.ends_with(".ic") {
+                value.push_str(".ic");
+            }
+
             value
         }
-    } else {
-        return Err(RuntimeError::InvalidPath(value, token.clone()));
+        _ => return Err(RuntimeError::InvalidPath(value, token.clone())),
     };
+    let file_path = &env.borrow().get_path().join(file_path);
     let source = match read_to_string(&file_path) {
         Ok(value) => value,
         Err(_) => {
             return Err(RuntimeError::ModuleNotFound(
-                file_path.to_owned(),
+                format!("{:?}", file_path),
                 token.clone(),
             ))
         }
     };
-    let interpreter = Interpreter::new();
+    let path = file_path.parent().unwrap().to_path_buf();
+    let interpreter = Interpreter::new(path);
     interpreter.load_builtin(get_std_builtins());
     interpreter.load_builtin(get_io_builtins());
     let value = interpreter.run_source(&source)?;

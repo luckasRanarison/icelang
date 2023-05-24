@@ -1,24 +1,29 @@
 use super::value::{RefVal, Value};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
 pub type RefEnv = Rc<RefCell<Environment>>;
 
 #[derive(Debug)]
 pub struct Environment {
+    path: PathBuf,
     values: HashMap<String, RefVal>,
     parent: Option<RefEnv>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
+    pub fn new(path: PathBuf) -> Self {
         Self {
+            path,
             values: HashMap::new(),
             parent: None,
         }
     }
 
     pub fn from(environment: Rc<RefCell<Environment>>) -> Self {
+        let path = environment.borrow().path.clone();
+
         Self {
+            path,
             values: HashMap::new(),
             parent: Some(environment),
         }
@@ -69,5 +74,9 @@ impl Environment {
 
     pub fn contains(&self, name: &str) -> bool {
         self.values.contains_key(name)
+    }
+
+    pub fn get_path(&self) -> &PathBuf {
+        &self.path
     }
 }

@@ -1,5 +1,7 @@
 mod builtins;
 
+use std::path::PathBuf;
+
 use builtins::get_io_builtins;
 use interpreter::{builtin::get_std_builtins, Interpreter};
 use lexer::Lexer;
@@ -25,7 +27,7 @@ pub fn interprete(source: &str) -> String {
         Ok(value) => value,
         Err(error) => return format!("Syntax error: {}", error),
     };
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::new(PathBuf::new());
     interpreter.load_builtin(get_std_builtins());
     interpreter.load_builtin(get_io_builtins());
 

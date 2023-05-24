@@ -11,15 +11,15 @@ use lexer::{tokens::TokenType, Lexer};
 use parser::{ast::*, Parser};
 use value::{Function, Range, RefVal, Value};
 
-use std::{cell::RefCell, collections::HashMap, f64::INFINITY, ops, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f64::INFINITY, ops, path::PathBuf, rc::Rc};
 
 pub struct Interpreter {
     environment: RefEnv,
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
-        let environment = Rc::new(RefCell::new(Environment::new()));
+    pub fn new(path: PathBuf) -> Self {
+        let environment = Rc::new(RefCell::new(Environment::new(path)));
 
         Self { environment }
     }
@@ -769,7 +769,7 @@ mod test {
     use super::{Interpreter, Value};
     use lexer::Lexer;
     use parser::Parser;
-    use std::{cell::RefCell, collections::HashMap, rc::Rc};
+    use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
     #[test]
     fn test_eval_operations() {
@@ -781,7 +781,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -806,7 +806,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -834,7 +834,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -855,7 +855,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -877,7 +877,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -902,7 +902,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -928,7 +928,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -948,7 +948,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -971,7 +971,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -1020,7 +1020,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -1041,7 +1041,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -1068,7 +1068,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -1094,7 +1094,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }
@@ -1125,7 +1125,7 @@ mod test {
         ";
         let tokens = Lexer::new(source).tokenize().unwrap();
         let ast = Parser::new(&tokens).parse().unwrap();
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new(PathBuf::new());
         for node in ast {
             interpreter.interpret(node);
         }

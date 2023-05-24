@@ -8,11 +8,8 @@ use parser::ast::Expression;
 
 use crate::print_to_output;
 
-#[rustfmt::skip]
 pub fn get_io_builtins() -> Vec<Builtin> {
-    vec![
-        Builtin::new("print", INFINITY as usize, io_print),
-    ]
+    vec![Builtin::new("print", INFINITY as usize, io_print)]
 }
 
 fn io_print(env: &RefEnv, _: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {

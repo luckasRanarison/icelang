@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 
 use interpreter::{
     builtin::{get_io_builtins, get_std_builtins},
@@ -88,7 +88,7 @@ pub fn color_value<'a>(value: &Value) -> AnsiGenericString<'a, str> {
 pub fn repl_mode() {
     print!("Welcome to icelang REPL mode, MIT LICENSE (Press CTRL-C to exit)");
 
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::new(PathBuf::new());
     interpreter.load_builtin(get_std_builtins());
     interpreter.load_builtin(get_io_builtins());
     let prompt = IcePrompt::new();
