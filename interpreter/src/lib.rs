@@ -324,7 +324,7 @@ impl EvalExpr for Variable {
         if let Some(value) = env.borrow().get(name) {
             Ok(value)
         } else {
-            Err(RuntimeError::UndefinedVariable(self.token.clone()))
+            Err(RuntimeError::UndefinedIdentifier(self.token.clone()))
         }
     }
 }
@@ -336,7 +336,7 @@ impl EvalRef for Variable {
         if let Some(value) = env.borrow().get_ref(name) {
             Ok(value)
         } else {
-            Err(RuntimeError::UndefinedVariable(self.token.clone()))
+            Err(RuntimeError::UndefinedIdentifier(self.token.clone()))
         }
     }
 }
@@ -565,7 +565,7 @@ impl EvalExpr for Binary {
             TokenType::Asterix => match left * right {
                 Some(value) => Ok(value),
                 None => Err(RuntimeError::InvalidOperation(
-                    format!("can't multiply a '{}' by a '{}'", left_type, right_type),
+                    format!("cannot multiply a '{}' by a '{}'", left_type, right_type),
                     self.operator.pos,
                 )),
             },
@@ -579,7 +579,7 @@ impl EvalExpr for Binary {
                 match left / right {
                     Some(value) => Ok(value),
                     None => Err(RuntimeError::InvalidOperation(
-                        format!("can't divide a '{}' by a '{}'", left_type, right_type),
+                        format!("cannot divide a '{}' by a '{}'", left_type, right_type),
                         self.operator.pos,
                     )),
                 }
@@ -587,21 +587,21 @@ impl EvalExpr for Binary {
             TokenType::Minus => match left - right {
                 Some(value) => Ok(value),
                 None => Err(RuntimeError::InvalidOperation(
-                    format!("can't substract a '{}' by a '{}'", left_type, right_type),
+                    format!("cannot substract a '{}' by a '{}'", left_type, right_type),
                     self.operator.pos,
                 )),
             },
             TokenType::Plus => match left + right {
                 Some(value) => Ok(value),
                 None => Err(RuntimeError::InvalidOperation(
-                    format!("can't add a '{}' by a '{}'", left_type, right_type),
+                    format!("cannot add a '{}' by a '{}'", left_type, right_type),
                     self.operator.pos,
                 )),
             },
             TokenType::Modulo => match left % right {
                 Some(value) => Ok(value),
                 None => Err(RuntimeError::InvalidOperation(
-                    format!("can't divide a '{}' by a '{}'", left_type, right_type),
+                    format!("cannot divide a '{}' by a '{}'", left_type, right_type),
                     self.operator.pos,
                 )),
             },

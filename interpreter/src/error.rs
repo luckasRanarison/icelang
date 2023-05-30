@@ -7,12 +7,12 @@ use thiserror::Error;
 pub enum RuntimeError {
     #[error("expected '{0}', but found '{1}' ({2})")]
     TypeExpection(String, String, Position),
-    #[error("{0} at ({1})")]
+    #[error("{0} ({1})")]
     InvalidOperation(String, Position),
     #[error("division by zero ({0})")]
     DivisionByZero(Position),
-    #[error("undefined variable '{}' ({})", .0.lexeme, .0.pos)]
-    UndefinedVariable(Token),
+    #[error("undefined identifier '{}' ({})", .0.lexeme, .0.pos)]
+    UndefinedIdentifier(Token),
     #[error("redeclaring existing identifier '{}' ({})", .0.lexeme, .0.pos)]
     RedeclaringIdentifier(Token),
     #[error("{0}")]
@@ -57,10 +57,10 @@ pub enum RuntimeError {
 
 #[derive(Debug, Error)]
 pub enum ControlFlow {
-    #[error("unexpected break statement outside of a loop at {}", .0.pos)]
+    #[error("unexpected break statement outside of a loop ({})", .0.pos)]
     Break(Token),
-    #[error("unexpected continue statement outside of a loop at {}", .0.pos)]
+    #[error("unexpected continue statement outside of a loop ({})", .0.pos)]
     Continue(Token),
-    #[error("unexpected return statement outside of a function at {}", .1.pos)]
+    #[error("unexpected return statement outside of a function ({})", .1.pos)]
     Return(Value, Token),
 }
