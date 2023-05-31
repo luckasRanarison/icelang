@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(token) = next_three.next() {
-            if token.value == TokenType::Colon {
+            if token.value == TokenType::Colon || token.value == TokenType::Comma {
                 return Ok(Statement::ExpressionStatement(self.parse_expression()?));
             }
         }
@@ -557,12 +557,21 @@ impl<'a> Parser<'a> {
             let name = self.clone_token();
             self.advance();
 
-            if self.current_token.value != TokenType::Colon {
-                return Err(ParsingError::ExpectedColon(self.clone_token()));
-            }
-            self.advance();
+            let value = match self.current_token.value {
+                TokenType::Colon => {
+                    self.advance();
+                    self.parse_expression()?
+                }
+                TokenType::Comma | TokenType::RightBrace => {
+                    Expression::VariableExpression(Variable {
+                        token: name.clone(),
+                    })
+                }
+                _ => {
+                    return Err(ParsingError::ExpectedColon(self.clone_token()));
+                }
+            };
 
-            let value = self.parse_expression()?;
             props.push((name, value));
             self.skip_line();
 
