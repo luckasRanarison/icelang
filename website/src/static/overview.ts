@@ -21,8 +21,10 @@ set bool = true;
 set range = 0 to 5; -- non inclusive 
 set array = [1, 2, 3, 4];
 set undefined = null;
+set dynamic_prop = "variable prop";
 set object = {
     prop: "value",
+    dynamic_prop,
     another: 1,
     method: lambda() {
         print(self.prop); 
@@ -64,6 +66,7 @@ set value = match(n) {
         -- block statement
         print("unreachable");
     },
+    -- default
     _: print("Default") ,
 } `,
   },

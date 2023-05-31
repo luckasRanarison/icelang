@@ -16,8 +16,8 @@
   "author": "LIOKA Ranarison Fiderana",
   "license": "MIT",
   "scripts": {
-    "dev": "vite --host",
-    "build": "tsc && vite build",
+    "dev": "sh ./pre-build.sh && vite --host",
+    "build": "sh ./pre-build.sh tsc && vite build",
     "preview": "vite preview --host",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
