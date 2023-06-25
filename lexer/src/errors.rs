@@ -1,7 +1,7 @@
 use super::utils::Position;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum LexicalError {
     #[error("unexpected character '{0}' ({1})")]
     UnexpectedCharacter(String, Position),

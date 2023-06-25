@@ -32,47 +32,21 @@ impl<'a> Lexer<'a> {
         while let Some(ch) = self.chars.next() {
             self.current_pos.col_end = self.current_pos.col_start;
 
-            if ch == '-' {
-                if let Some(next_char) = self.chars.peek() {
-                    if *next_char == '-' {
-                        self.skip_comment();
-                        continue;
-                    }
-                }
+            if ch == '\n' {
+                tokens.push(Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    self.current_pos,
+                ));
             }
 
-            if ch.is_whitespace() {
-                if ch == '\n' {
-                    tokens.push(Token::new(
-                        TokenType::LineBreak,
-                        String::from("\n"),
-                        self.current_pos,
-                    ));
-                    self.current_pos.line += 1;
-                    self.current_pos.col_start = 1;
-                } else {
-                    self.current_pos.col_start = self.current_pos.col_end + 1;
-                }
-
+            if self.is_skipable(ch) {
                 continue;
             }
 
             self.current_lexeme += &ch.to_string();
 
-            let token = match ch {
-                ch if is_standard_symbol(ch) => self.create_symbol_token(),
-                ch if is_quote(ch) => self.create_string_token(ch),
-                ch if is_alphabetic(ch) => self.create_keyword_or_identifer_token(),
-                ch if ch.is_ascii_digit() => self.create_number_token(),
-                _ => {
-                    return Err(LexicalError::UnexpectedCharacter(
-                        self.current_lexeme.clone(),
-                        self.current_pos,
-                    ))
-                }
-            };
-
-            tokens.push(token?);
+            tokens.push(self.create_token(ch)?);
 
             self.current_lexeme = String::new();
             self.current_pos.col_start = self.current_pos.col_end + 1;
@@ -83,15 +57,102 @@ impl<'a> Lexer<'a> {
         }
         self.current_pos.col_end = self.current_pos.col_start;
 
-        let eof_token = Token::new(TokenType::Eof, String::new(), self.current_pos);
-        tokens.push(eof_token);
+        tokens.push(Token::new(TokenType::Eof, String::new(), self.current_pos));
 
         Ok(tokens)
+    }
+
+    pub fn tokenize_with_err(&mut self) -> (Vec<Token>, Vec<LexicalError>) {
+        let mut tokens: Vec<Token> = Vec::new();
+        let mut errors: Vec<LexicalError> = Vec::new();
+
+        while let Some(ch) = self.chars.next() {
+            self.current_pos.col_end = self.current_pos.col_start;
+
+            if ch == '\n' {
+                tokens.push(Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    self.current_pos,
+                ));
+            }
+
+            if self.is_skipable(ch) {
+                continue;
+            }
+
+            self.current_lexeme += &ch.to_string();
+
+            match self.create_token(ch) {
+                Ok(token) => tokens.push(token),
+                Err(error) => {
+                    while let Some(ch) = self.chars.next() {
+                        self.current_pos.col_end += 1;
+                        self.current_pos.col_start = self.current_pos.col_end;
+                        if ch == '\n' {
+                            match error {
+                                LexicalError::TrailingQuote(..) => {
+                                    self.current_pos.line += 1;
+                                    self.current_pos.col_end = 1;
+                                }
+                                _ => {
+                                    tokens.push(Token::new(
+                                        TokenType::LineBreak,
+                                        String::from("\n"),
+                                        self.current_pos,
+                                    ));
+                                    self.current_pos.line += 1;
+                                    self.current_pos.col_end = 0; // offset
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    errors.push(error);
+                }
+            }
+
+            self.current_lexeme = String::new();
+            self.current_pos.col_start = self.current_pos.col_end + 1;
+        }
+
+        if self.current_pos.col_start != 1 {
+            self.current_pos.col_start -= 1; // offstet of the last loop
+        }
+        self.current_pos.col_end = self.current_pos.col_start;
+
+        tokens.push(Token::new(TokenType::Eof, String::new(), self.current_pos));
+
+        (tokens, errors)
     }
 
     fn advance(&mut self) {
         self.chars.next();
         self.current_pos.col_end += 1;
+    }
+
+    fn is_skipable(&mut self, ch: char) -> bool {
+        if ch == '-' {
+            if let Some(next_char) = self.chars.peek() {
+                if *next_char == '-' {
+                    self.skip_comment();
+                    return true;
+                }
+            }
+        }
+
+        if ch.is_whitespace() {
+            if ch == '\n' {
+                self.current_pos.line += 1;
+                self.current_pos.col_start = 1;
+            } else {
+                self.current_pos.col_start = self.current_pos.col_end + 1;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     fn skip_comment(&mut self) {
@@ -100,6 +161,21 @@ impl<'a> Lexer<'a> {
                 self.current_pos.line += 1;
                 self.current_pos.col_start = 1;
                 break;
+            }
+        }
+    }
+
+    fn create_token(&mut self, ch: char) -> Result<Token, LexicalError> {
+        match ch {
+            ch if is_standard_symbol(ch) => self.create_symbol_token(),
+            ch if is_quote(ch) => self.create_string_token(ch),
+            ch if is_alphabetic(ch) => self.create_keyword_or_identifer_token(),
+            ch if ch.is_ascii_digit() => self.create_number_token(),
+            _ => {
+                return Err(LexicalError::UnexpectedCharacter(
+                    self.current_lexeme.clone(),
+                    self.current_pos,
+                ))
             }
         }
     }
@@ -377,6 +453,55 @@ mod tests {
                     Position::new(3, 1, 1)
                 ),
                 Token::new(TokenType::Eof, String::new(), Position::new(3, 1, 1)),
+            ]
+        )
+    }
+
+    #[test]
+    fn test_tokenize_with_err() {
+        let s = "12 + 1..2
+^ unreachable
+idk
+'hi";
+        let (tokens, errors) = Lexer::new(s).tokenize_with_err();
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new(
+                    TokenType::Number(12.0),
+                    String::from("12"),
+                    Position::new(1, 1, 2)
+                ),
+                Token::new(TokenType::Plus, String::from("+"), Position::new(1, 4, 4)),
+                Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    Position::new(1, 10, 10)
+                ),
+                Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    Position::new(2, 14, 14)
+                ),
+                Token::new(
+                    TokenType::Identifier(String::from("idk")),
+                    String::from("idk"),
+                    Position::new(3, 1, 3)
+                ),
+                Token::new(
+                    TokenType::LineBreak,
+                    String::from("\n"),
+                    Position::new(3, 4, 4)
+                ),
+                Token::new(TokenType::Eof, String::new(), Position::new(4, 3, 3))
+            ]
+        );
+        assert_eq!(
+            errors,
+            vec![
+                LexicalError::InvalidFloat(String::from("1..2"), Position::new(1, 6, 9)),
+                LexicalError::UnexpectedCharacter(String::from("^"), Position::new(2, 1, 1)),
+                LexicalError::TrailingQuote('\'', Position::new(4, 1, 3))
             ]
         )
     }
