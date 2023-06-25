@@ -1,4 +1,4 @@
-use lexer::tokens::Token;
+use lexer::{errors::LexicalError, tokens::Token};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -45,4 +45,6 @@ pub enum ParsingError {
     InvalidAssignment(Token),
     #[error("invalid property name ({})", .0.pos)]
     InvalidProp(Token),
+    #[error("{}", .0)]
+    LexicalError(LexicalError),
 }

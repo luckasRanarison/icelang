@@ -19,6 +19,46 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
+        self.advance();
+        let mut nodes: Vec<Statement> = Vec::new();
+
+        while !self.current_token.value.is_eof() {
+            let statement = self.parse_statement()?;
+            match &statement {
+                Statement::FunctionDeclaration(_) => nodes.insert(0, statement),
+                _ => nodes.push(statement),
+            }
+        }
+
+        Ok(nodes)
+    }
+
+    pub fn parse_with_err(&mut self) -> (Vec<Statement>, Vec<ParsingError>) {
+        self.advance();
+        let mut nodes: Vec<Statement> = Vec::new();
+        let mut errors: Vec<ParsingError> = Vec::new();
+
+        while !self.current_token.value.is_eof() {
+            match self.parse_statement() {
+                Ok(statement) => match &statement {
+                    Statement::FunctionDeclaration(_) => nodes.insert(0, statement),
+                    _ => nodes.push(statement),
+                },
+                Err(error) => {
+                    while let Some(token) = self.tokens.next() {
+                        if token.value.is_line_break() {
+                            break;
+                        }
+                    }
+                    errors.push(error)
+                }
+            }
+        }
+
+        (nodes, errors)
+    }
+
     fn clone_token(&self) -> Token {
         self.current_token.clone()
     }
@@ -39,21 +79,6 @@ impl<'a> Parser<'a> {
         while self.current_token.value.is_line_break() {
             self.current_token = self.tokens.next().unwrap();
         }
-    }
-
-    pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
-        self.advance();
-        let mut nodes: Vec<Statement> = Vec::new();
-
-        while !self.current_token.value.is_eof() {
-            let statement = self.parse_statement()?;
-            match &statement {
-                Statement::FunctionDeclaration(_) => nodes.insert(0, statement),
-                _ => nodes.push(statement),
-            }
-        }
-
-        Ok(nodes)
     }
 
     fn parse_statement(&mut self) -> Result<Statement, ParsingError> {
