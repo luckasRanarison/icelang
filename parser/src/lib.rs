@@ -47,12 +47,10 @@ impl<'a> Parser<'a> {
                     _ => nodes.push(statement),
                 },
                 Err(error) => {
-                    while let Some(token) = self.tokens.next() {
-                        if token.value.is_line_break() {
-                            break;
-                        }
+                    errors.push(error);
+                    if !self.current_token.value.is_eof() {
+                        self.advance();
                     }
-                    errors.push(error)
                 }
             }
         }
