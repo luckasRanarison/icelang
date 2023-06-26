@@ -1,6 +1,6 @@
-use reedline::{ValidationResult, Validator};
 use lexer::Lexer;
-use parser::{error::ParsingError, Parser};
+use parser::{error::ParsingErrorKind, Parser};
+use reedline::{ValidationResult, Validator};
 
 pub struct IceValidator {}
 
@@ -22,11 +22,11 @@ impl Validator for IceValidator {
         let nodes = Parser::new(&tokens).parse();
         match nodes {
             Ok(_) => ValidationResult::Complete,
-            Err(err) => match err {
-                ParsingError::MissingParenthesis(_)
-                | ParsingError::MissingClosingBrace(_)
-                | ParsingError::ExpectedComma(_)
-                | ParsingError::UnexpedtedEndOfInput(_) => ValidationResult::Incomplete,
+            Err(err) => match err.kind {
+                ParsingErrorKind::MissingParenthesis
+                | ParsingErrorKind::MissingClosingBrace
+                | ParsingErrorKind::ExpectedComma(_)
+                | ParsingErrorKind::UnexpedtedEndOfInput => ValidationResult::Incomplete,
                 _ => ValidationResult::Complete,
             },
         }

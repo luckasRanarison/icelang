@@ -1,4 +1,4 @@
-use std::{error::Error, path::PathBuf};
+use std::{fmt::Display, path::PathBuf};
 
 use interpreter::{
     builtin::{get_io_builtins, get_std_builtins},
@@ -16,7 +16,7 @@ mod highlighter;
 mod prompt;
 mod validator;
 
-pub fn print_errror<T: Error>(error_type: &str, error: T) {
+pub fn print_errror<T: Display>(error_type: &str, error: T) {
     println!("{}: {}", Color::Red.paint(error_type), error)
 }
 
