@@ -6,7 +6,7 @@ pub mod value;
 use crate::builtin::Builtin;
 
 use environment::{Environment, RefEnv};
-use error::{ControlFlow, RuntimeError};
+use error::{ControlFlow, RuntimeError, RuntimeErrorKind};
 use lexer::{tokens::TokenType, Lexer};
 use parser::{ast::*, Parser};
 use value::{Function, Range, RefVal, Value};
@@ -39,16 +39,26 @@ impl Interpreter {
     pub fn run_source(&self, source: &str) -> Result<Value, RuntimeError> {
         let tokens = match Lexer::new(source).tokenize() {
             Ok(value) => value,
-            Err(error) => return Err(RuntimeError::LexicalError(error)),
+            Err(error) => {
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::LexicalError(error.kind),
+                    error.position,
+                ))
+            }
         };
         let nodes = match Parser::new(&tokens).parse() {
             Ok(value) => value,
-            Err(error) => return Err(RuntimeError::ParsingError(error)),
+            Err(error) => {
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::ParsingError(error.kind),
+                    error.position,
+                ))
+            }
         };
 
         for node in nodes {
             if let Err(error) = self.interpret(node) {
-                if let RuntimeError::Export(value) = error {
+                if let RuntimeErrorKind::Export(value) = error.kind {
                     return Ok(value);
                 } else {
                     return Err(error);
@@ -75,11 +85,17 @@ fn is_truthy(value: &Value) -> bool {
 fn get_numerical_index(expr: &Index, value: Value) -> Result<usize, RuntimeError> {
     if let Value::Number(index) = value {
         if index < 0.0 {
-            return Err(RuntimeError::InvalidIndex(expr.token.clone()));
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::InvalidIndex,
+                expr.token.pos,
+            ));
         }
         Ok(index as usize)
     } else {
-        Err(RuntimeError::InvalidIndex(expr.token.clone()))
+        return Err(RuntimeError::new(
+            RuntimeErrorKind::InvalidIndex,
+            expr.token.pos,
+        ));
     }
 }
 
@@ -129,7 +145,10 @@ impl Eval for Declaration {
         let name = &self.name.lexeme;
 
         if env.borrow().contains(name) {
-            return Err(RuntimeError::RedeclaringIdentifier(self.name.clone()));
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::RedeclaringIdentifier(self.name.lexeme.clone()),
+                self.name.pos,
+            ));
         }
 
         let value = self.value.evaluate_expression(env)?;
@@ -160,7 +179,10 @@ impl Eval for For {
         let value = self.iterable.evaluate_expression(env)?;
 
         if !value.is_iterable() {
-            return Err(RuntimeError::NonIterable(self.iterable_token.clone()));
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::NonIterable,
+                self.iterable_token.pos,
+            ));
         }
 
         let new_env = Rc::new(RefCell::new(Environment::from(env.clone())));
@@ -189,14 +211,15 @@ impl Eval for While {
             }
 
             if let Some(error) = self.block.evaluate(env).err() {
-                match error {
-                    RuntimeError::ControlFlow(statement) => match statement {
-                        ControlFlow::Break(_) => break,
-                        ControlFlow::Continue(_) => continue,
-                        ControlFlow::Return(value, token) => {
-                            return Err(RuntimeError::ControlFlow(ControlFlow::Return(
-                                value, token,
-                            )))
+                match error.kind {
+                    RuntimeErrorKind::ControlFlow(statement) => match statement {
+                        ControlFlow::Break => break,
+                        ControlFlow::Continue => continue,
+                        ControlFlow::Return(value) => {
+                            return Err(RuntimeError::new(
+                                RuntimeErrorKind::ControlFlow(ControlFlow::Return(value)),
+                                error.position,
+                            ))
                         }
                     },
                     _ => return Err(error),
@@ -212,14 +235,15 @@ impl Eval for Loop {
     fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
         loop {
             if let Some(error) = self.block.evaluate(env).err() {
-                match error {
-                    RuntimeError::ControlFlow(statement) => match statement {
-                        ControlFlow::Break(_) => break,
-                        ControlFlow::Continue(_) => continue,
-                        ControlFlow::Return(value, token) => {
-                            return Err(RuntimeError::ControlFlow(ControlFlow::Return(
-                                value, token,
-                            )))
+                match error.kind {
+                    RuntimeErrorKind::ControlFlow(statement) => match statement {
+                        ControlFlow::Break => break,
+                        ControlFlow::Continue => continue,
+                        ControlFlow::Return(value) => {
+                            return Err(RuntimeError::new(
+                                RuntimeErrorKind::ControlFlow(ControlFlow::Return(value)),
+                                error.position,
+                            ))
                         }
                     },
                     _ => return Err(error),
@@ -233,27 +257,31 @@ impl Eval for Loop {
 
 impl Eval for Break {
     fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        Err(RuntimeError::ControlFlow(ControlFlow::Break(
-            self.token.clone(),
-        )))
+        Err(RuntimeError::new(
+            RuntimeErrorKind::ControlFlow(ControlFlow::Break),
+            self.token.pos,
+        ))
     }
 }
 
 impl Eval for Continue {
     fn evaluate(&self, _env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        Err(RuntimeError::ControlFlow(ControlFlow::Continue(
-            self.token.clone(),
-        )))
+        Err(RuntimeError::new(
+            RuntimeErrorKind::ControlFlow(ControlFlow::Continue),
+            self.token.pos,
+        ))
     }
 }
 
 impl Eval for FunctionDeclaration {
     fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
-        let name = &self.token.as_ref().unwrap().lexeme;
+        let token = &self.token.as_ref().unwrap();
+        let name = &token.lexeme;
 
-        if env.borrow().contains(name) {
-            return Err(RuntimeError::RedeclaringIdentifier(
-                self.token.as_ref().unwrap().clone(),
+        if env.borrow().contains(&name) {
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::RedeclaringIdentifier(name.clone()),
+                token.pos,
             ));
         }
 
@@ -271,10 +299,10 @@ impl Eval for FunctionDeclaration {
 impl Eval for Return {
     fn evaluate(&self, env: &RefEnv) -> Result<Option<Value>, RuntimeError> {
         let value = self.expression.evaluate_expression(env)?;
-        Err(RuntimeError::ControlFlow(ControlFlow::Return(
-            value,
-            self.token.clone(),
-        )))
+        Err(RuntimeError::new(
+            RuntimeErrorKind::ControlFlow(ControlFlow::Return(value)),
+            self.token.pos,
+        ))
     }
 }
 
@@ -321,10 +349,12 @@ impl EvalExpr for Variable {
     fn evaluate_expression(&self, env: &RefEnv) -> Result<Value, RuntimeError> {
         let name = &self.token.lexeme;
 
-        if let Some(value) = env.borrow().get(name) {
-            Ok(value)
-        } else {
-            Err(RuntimeError::UndefinedIdentifier(self.token.clone()))
+        match env.borrow().get(name) {
+            Some(value) => Ok(value),
+            None => Err(RuntimeError::new(
+                RuntimeErrorKind::UndefinedIdentifier(self.token.lexeme.clone()),
+                self.token.pos,
+            )),
         }
     }
 }
@@ -333,10 +363,12 @@ impl EvalRef for Variable {
     fn evaluate_ref(&self, env: &RefEnv) -> Result<RefVal, RuntimeError> {
         let name = &self.token.lexeme;
 
-        if let Some(value) = env.borrow().get_ref(name) {
-            Ok(value)
-        } else {
-            Err(RuntimeError::UndefinedIdentifier(self.token.clone()))
+        match env.borrow().get_ref(name) {
+            Some(value) => Ok(value),
+            None => Err(RuntimeError::new(
+                RuntimeErrorKind::UndefinedIdentifier(self.token.lexeme.clone()),
+                self.token.pos,
+            )),
         }
     }
 }
@@ -365,11 +397,16 @@ impl EvalExpr for Assign {
                 TokenType::ModuloEqual => prev % expression_value,
                 _ => unreachable!(),
             };
-            if let Some(result) = result {
-                *rf.borrow_mut() = result.clone();
-                Ok(result)
-            } else {
-                Err(RuntimeError::InvalidAssignment(self.token.clone()))
+
+            match result {
+                Some(result) => {
+                    *rf.borrow_mut() = result.clone();
+                    Ok(result)
+                }
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidAssignment,
+                    self.token.pos,
+                )),
             }
         }
     }
@@ -416,7 +453,12 @@ impl EvalExpr for Index {
             let index = match index_expression {
                 Value::Number(value) => value.to_string(),
                 Value::String(value) => value,
-                _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
+                _ => {
+                    return Err(RuntimeError::new(
+                        RuntimeErrorKind::UndefinedIdentifier(self.token.lexeme.clone()),
+                        self.token.pos,
+                    ))
+                }
             };
 
             let value = if let Some(value) = object.values.get(&index) {
@@ -436,14 +478,16 @@ impl EvalExpr for Index {
                         Value::Null
                     }
                 }
-                Value::String(string) => {
-                    if let Some(value) = string.chars().nth(index) {
-                        Value::String(value.to_string())
-                    } else {
-                        Value::Null
-                    }
+                Value::String(string) => match string.chars().nth(index) {
+                    Some(value) => Value::String(value.to_string()),
+                    None => Value::Null,
+                },
+                _ => {
+                    return Err(RuntimeError::new(
+                        RuntimeErrorKind::UnindexableType,
+                        self.token.pos,
+                    ))
                 }
-                _ => return Err(RuntimeError::UnindexableType(self.token.clone())),
             };
 
             Ok(value)
@@ -457,7 +501,12 @@ impl EvalRef for Index {
             Expression::VariableExpression(variable) => variable.evaluate_ref(env)?,
             Expression::IndexExpression(index_expr) => index_expr.evaluate_ref(env)?,
             Expression::PropAccess(prop) => prop.evaluate_ref(env)?,
-            _ => return Err(RuntimeError::InvalidAssignment(self.token.clone())),
+            _ => {
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidAssignment,
+                    self.token.pos,
+                ))
+            }
         };
         let index_expression = self.index.evaluate_expression(env)?;
         let expression = &mut *expression_ref.borrow_mut();
@@ -475,7 +524,12 @@ impl EvalRef for Index {
                 let index = match index_expression {
                     Value::Number(value) => value.to_string(),
                     Value::String(value) => value,
-                    _ => return Err(RuntimeError::InvalidIndex(self.token.clone())),
+                    _ => {
+                        return Err(RuntimeError::new(
+                            RuntimeErrorKind::InvalidIndex,
+                            self.token.pos,
+                        ))
+                    }
                 };
 
                 if let Some(value) = object.values.get(&index) {
@@ -486,7 +540,10 @@ impl EvalRef for Index {
                     Ok(rf)
                 }
             }
-            _ => Err(RuntimeError::InvalidAssignment(self.token.clone())),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::InvalidAssignment,
+                self.token.pos,
+            )),
         }
     }
 }
@@ -504,7 +561,12 @@ impl EvalExpr for Access {
                     Value::Null
                 }
             }
-            _ => return Err(RuntimeError::NotAnObject(self.token.clone())),
+            _ => {
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::NotAnObject,
+                    self.token.pos,
+                ))
+            }
         };
 
         Ok(value)
@@ -517,21 +579,31 @@ impl EvalRef for Access {
             Expression::VariableExpression(variable) => variable.evaluate_ref(env)?,
             Expression::IndexExpression(index_expr) => index_expr.evaluate_ref(env)?,
             Expression::PropAccess(prop) => prop.evaluate_ref(env)?,
-            _ => return Err(RuntimeError::InvalidAssignment(self.token.clone())),
+            _ => {
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidAssignment,
+                    self.token.pos,
+                ))
+            }
         };
         let expression = &mut *expression_ref.borrow_mut();
 
-        if let Value::Object(object) = expression {
-            let prop = &self.prop.lexeme;
-            if let Some(value) = object.values.get(prop) {
-                Ok(value.clone())
-            } else {
-                let rf = Rc::new(RefCell::new(Value::Null));
-                object.values.insert(prop.to_owned(), rf.clone());
-                Ok(rf)
+        match expression {
+            Value::Object(object) => {
+                let prop = &self.prop.lexeme;
+                match object.values.get(prop) {
+                    Some(value) => Ok(value.clone()),
+                    None => {
+                        let rf = Rc::new(RefCell::new(Value::Null));
+                        object.values.insert(prop.to_owned(), rf.clone());
+                        Ok(rf)
+                    }
+                }
             }
-        } else {
-            Err(RuntimeError::NotAnObject(self.token.clone()))
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::NotAnObject,
+                self.token.pos,
+            )),
         }
     }
 }
@@ -542,9 +614,8 @@ impl EvalExpr for Unary {
         match &self.operator.value {
             TokenType::Minus => match operand {
                 Value::Number(value) => Ok(Value::Number(-value)),
-                _ => Err(RuntimeError::TypeExpection(
-                    "number".to_owned(),
-                    operand.get_type(),
+                _ => Err(RuntimeError::new(
+                    RuntimeErrorKind::TypeExpection("number".to_string(), operand.get_type()),
                     self.operator.pos,
                 )),
             },
@@ -564,44 +635,62 @@ impl EvalExpr for Binary {
         match &self.operator.value {
             TokenType::Asterix => match left * right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::InvalidOperation(
-                    format!("cannot multiply a '{}' by a '{}'", left_type, right_type),
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidOperation(format!(
+                        "cannot multiply a '{}' by a '{}'",
+                        left_type, right_type
+                    )),
                     self.operator.pos,
                 )),
             },
             TokenType::Slash => {
                 if let Value::Number(right) = right {
                     if right == 0.0 {
-                        return Err(RuntimeError::DivisionByZero(self.operator.pos));
+                        return Err(RuntimeError::new(
+                            RuntimeErrorKind::DivisionByZero,
+                            self.operator.pos,
+                        ));
                     }
                 }
 
                 match left / right {
                     Some(value) => Ok(value),
-                    None => Err(RuntimeError::InvalidOperation(
-                        format!("cannot divide a '{}' by a '{}'", left_type, right_type),
+                    None => Err(RuntimeError::new(
+                        RuntimeErrorKind::InvalidOperation(format!(
+                            "cannot divide a '{}' by a '{}'",
+                            left_type, right_type
+                        )),
                         self.operator.pos,
                     )),
                 }
             }
             TokenType::Minus => match left - right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::InvalidOperation(
-                    format!("cannot substract a '{}' by a '{}'", left_type, right_type),
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidOperation(format!(
+                        "cannot substract a '{}' by a '{}'",
+                        left_type, right_type
+                    )),
                     self.operator.pos,
                 )),
             },
             TokenType::Plus => match left + right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::InvalidOperation(
-                    format!("cannot add a '{}' by a '{}'", left_type, right_type),
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidOperation(format!(
+                        "cannot add a '{}' by a '{}'",
+                        left_type, right_type
+                    )),
                     self.operator.pos,
                 )),
             },
             TokenType::Modulo => match left % right {
                 Some(value) => Ok(value),
-                None => Err(RuntimeError::InvalidOperation(
-                    format!("cannot divide a '{}' by a '{}'", left_type, right_type),
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidOperation(format!(
+                        "cannot divide a '{}' by a '{}'",
+                        left_type, right_type
+                    )),
                     self.operator.pos,
                 )),
             },
@@ -627,10 +716,16 @@ impl EvalExpr for Binary {
                         let range = Range::CharRange(ops::Range { start, end });
                         Ok(Value::Range(range))
                     } else {
-                        Err(RuntimeError::InvalidRange(self.operator.clone()))
+                        Err(RuntimeError::new(
+                            RuntimeErrorKind::InvalidRange,
+                            self.operator.pos,
+                        ))
                     }
                 }
-                _ => Err(RuntimeError::InvalidRange(self.operator.clone())),
+                _ => Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidRange,
+                    self.operator.pos,
+                )),
             },
             _ => unreachable!(),
         }
@@ -707,10 +802,9 @@ impl EvalExpr for Call {
             let expected = function.declaration.parameter.len();
 
             if expected != got {
-                return Err(RuntimeError::InvalidArgument(
-                    expected,
-                    got,
-                    self.token.clone(),
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidArgument(expected, got),
+                    self.token.pos,
                 ));
             }
 
@@ -729,7 +823,7 @@ impl EvalExpr for Call {
             let value = match value {
                 Ok(value) => value,
                 Err(error) => {
-                    if let RuntimeError::ControlFlow(ControlFlow::Return(value, _)) = error {
+                    if let RuntimeErrorKind::ControlFlow(ControlFlow::Return(value)) = error.kind {
                         Some(value)
                     } else {
                         return Err(error);
@@ -745,10 +839,9 @@ impl EvalExpr for Call {
             let expected = builtin.args;
 
             if expected != INFINITY as usize && got != expected {
-                return Err(RuntimeError::InvalidArgument(
-                    expected,
-                    got,
-                    self.token.clone(),
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::InvalidArgument(expected, got),
+                    self.token.pos,
                 ));
             }
 
@@ -756,7 +849,10 @@ impl EvalExpr for Call {
 
             Ok(value)
         } else {
-            return Err(RuntimeError::NotFunciton(self.token.clone()));
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::NotFunciton,
+                self.token.pos,
+            ));
         }
     }
 }

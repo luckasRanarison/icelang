@@ -1,66 +1,84 @@
+use std::fmt;
+
 use super::value::Value;
-use lexer::{errors::LexicalError, tokens::Token, utils::Position};
-use parser::error::ParsingError;
+use lexer::{errors::LexicalErrorKind, utils::Position};
+use parser::error::ParsingErrorKind;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum RuntimeError {
-    #[error("expected '{0}', but found '{1}' ({2})")]
-    TypeExpection(String, String, Position),
-    #[error("{0} ({1})")]
-    InvalidOperation(String, Position),
-    #[error("division by zero ({0})")]
-    DivisionByZero(Position),
-    #[error("undefined identifier '{}' ({})", .0.lexeme, .0.pos)]
-    UndefinedIdentifier(Token),
-    #[error("redeclaring existing identifier '{}' ({})", .0.lexeme, .0.pos)]
-    RedeclaringIdentifier(Token),
+#[derive(Debug, PartialEq)]
+pub struct RuntimeError {
+    pub kind: RuntimeErrorKind,
+    pub position: Position,
+}
+
+impl RuntimeError {
+    pub fn new(kind: RuntimeErrorKind, position: Position) -> Self {
+        Self { kind, position }
+    }
+}
+
+impl fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.kind, self.position)
+    }
+}
+
+#[derive(Debug, Error, PartialEq)]
+pub enum RuntimeErrorKind {
+    #[error("expected '{0}', but found '{1}'")]
+    TypeExpection(String, String),
+    #[error("{0}")]
+    InvalidOperation(String),
+    #[error("division by zero")]
+    DivisionByZero,
+    #[error("undefined identifier '{0}'")]
+    UndefinedIdentifier(String),
+    #[error("redeclaring existing identifier '{0}'")]
+    RedeclaringIdentifier(String),
     #[error("{0}")]
     ControlFlow(ControlFlow),
-    #[error("trying to index an unindexable object ({})", .0.pos)]
-    UnindexableType(Token),
-    #[error("invalid index value ({})", .0.pos)]
-    InvalidIndex(Token),
-    #[error("trying to call a non function expression ({})", .0.pos)]
-    NotFunciton(Token),
-    #[error("trying to assign index value to a non-array variable ({})", .0.pos)]
-    NotAnArray(Token),
-    #[error("calling property on a non-object type ({})", .0.pos)]
-    NotAnObject(Token),
-    #[error("expected {0} argument but got {1} ({})", .2.pos)]
-    InvalidArgument(usize, usize, Token),
-    #[error("invalid assignment ({})", .0.pos)]
-    InvalidAssignment(Token),
-    #[error("invalid range ({})", .0.pos)]
-    InvalidRange(Token),
-    #[error("invalid number parsing ({})", .0.pos)]
-    InvalidNumber(Token),
-    #[error("module '{0}' not found ({})", .1.pos)]
-    ModuleNotFound(String, Token),
-    #[error("non-iterable type ({})", .0.pos)]
-    NonIterable(Token),
-    #[error("expected '{0}' but got '{1}' ({})", .2.pos)]
-    ExpectedButGot(String, String, Token),
-    #[error("invalid argument type ({})", .0.pos)]
-    InvalidArg(Token),
-    #[error("mismatched arguments type ({})", .0.pos)]
-    MismatchedArg(Token),
-    #[error("invalid path '{0}' ({})", .1.pos)]
-    InvalidPath(Value, Token),
+    #[error("trying to index an unindexable object")]
+    UnindexableType,
+    #[error("invalid index value")]
+    InvalidIndex,
+    #[error("trying to call a non function expression")]
+    NotFunciton,
+    #[error("trying to assign index value to a non-array variable)")]
+    NotAnArray,
+    #[error("calling property on a non-object type)")]
+    NotAnObject,
+    #[error("expected {0} argument but got {1}")]
+    InvalidArgument(usize, usize),
+    #[error("invalid assignment")]
+    InvalidAssignment,
+    #[error("invalid range")]
+    InvalidRange,
+    #[error("invalid number parsing")]
+    InvalidNumber,
+    #[error("module '{0}' not found")]
+    ModuleNotFound(String),
+    #[error("non-iterable type")]
+    NonIterable,
+    #[error("invalid argument type")]
+    InvalidArg,
+    #[error("mismatched arguments type")]
+    MismatchedArg,
+    #[error("invalid path '{0}'")]
+    InvalidPath(Value),
     #[error("{0}")]
-    LexicalError(LexicalError),
+    LexicalError(LexicalErrorKind),
     #[error("{0}")]
-    ParsingError(ParsingError),
+    ParsingError(ParsingErrorKind),
     #[error("cannot export module in REPL mode")]
     Export(Value),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ControlFlow {
-    #[error("unexpected break statement outside of a loop ({})", .0.pos)]
-    Break(Token),
-    #[error("unexpected continue statement outside of a loop ({})", .0.pos)]
-    Continue(Token),
-    #[error("unexpected return statement outside of a function ({})", .1.pos)]
-    Return(Value, Token),
+    #[error("unexpected break statement outside of a loop")]
+    Break,
+    #[error("unexpected continue statement outside of a loop")]
+    Continue,
+    #[error("unexpected return statement outside of a function")]
+    Return(Value),
 }

@@ -1,7 +1,7 @@
 use cli::{print_errror, repl_mode};
 use interpreter::{
     builtin::{get_io_builtins, get_std_builtins},
-    error::RuntimeError,
+    error::RuntimeErrorKind,
     Interpreter,
 };
 use lexer::Lexer;
@@ -40,8 +40,8 @@ fn run_file(file_path: &Path) {
 
     for node in nodes {
         if let Some(error) = interpreter.interpret(node).err() {
-            match error {
-                RuntimeError::Export(_) => {}
+            match error.kind {
+                RuntimeErrorKind::Export(_) => {}
                 _ => {
                     print_errror("Runtime error", error);
                     process::exit(1)

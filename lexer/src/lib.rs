@@ -4,8 +4,10 @@ pub mod utils;
 
 use std::{iter::Peekable, str::Chars};
 
+use errors::LexicalError;
+
 use self::{
-    errors::LexicalError,
+    errors::LexicalErrorKind,
     tokens::{Token, TokenType},
     utils::*,
 };
@@ -21,7 +23,7 @@ impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
             chars: source.chars().peekable(),
-            current_pos: Position::new(1, 1, 1),
+            current_pos: Position::new(0, 0, 0, 0),
             current_lexeme: String::new(),
         }
     }
@@ -30,6 +32,7 @@ impl<'a> Lexer<'a> {
         let mut tokens: Vec<Token> = Vec::new();
 
         while let Some(ch) = self.chars.next() {
+            self.current_pos.line_start = self.current_pos.line_end;
             self.current_pos.col_end = self.current_pos.col_start;
 
             if ch == '\n' {
@@ -52,7 +55,7 @@ impl<'a> Lexer<'a> {
             self.current_pos.col_start = self.current_pos.col_end + 1;
         }
 
-        if self.current_pos.col_start != 1 {
+        if self.current_pos.col_start > 0 {
             self.current_pos.col_start -= 1; // offstet of the last loop
         }
         self.current_pos.col_end = self.current_pos.col_start;
@@ -67,6 +70,8 @@ impl<'a> Lexer<'a> {
         let mut errors: Vec<LexicalError> = Vec::new();
 
         while let Some(ch) = self.chars.next() {
+            self.current_lexeme.clear();
+            self.current_pos.line_start = self.current_pos.line_end;
             self.current_pos.col_end = self.current_pos.col_start;
 
             if ch == '\n' {
@@ -90,10 +95,11 @@ impl<'a> Lexer<'a> {
                         self.current_pos.col_end += 1;
                         self.current_pos.col_start = self.current_pos.col_end;
                         if ch == '\n' {
-                            match error {
-                                LexicalError::TrailingQuote(..) => {
-                                    self.current_pos.line += 1;
-                                    self.current_pos.col_end = 1;
+                            match error.kind {
+                                LexicalErrorKind::TrailingQuote(..) => {
+                                    self.current_pos.line_end += 1;
+                                    self.current_pos.col_end = 0;
+                                    self.current_pos.col_start = 0;
                                 }
                                 _ => {
                                     tokens.push(Token::new(
@@ -101,8 +107,9 @@ impl<'a> Lexer<'a> {
                                         String::from("\n"),
                                         self.current_pos,
                                     ));
-                                    self.current_pos.line += 1;
-                                    self.current_pos.col_end = 0; // offset
+                                    self.current_pos.line_end += 1;
+                                    self.current_pos.col_end = 0;
+                                    self.current_pos.col_start = 0;
                                     break;
                                 }
                             }
@@ -112,11 +119,13 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            self.current_lexeme = String::new();
-            self.current_pos.col_start = self.current_pos.col_end + 1;
+            // skip if line break
+            if self.current_pos.col_end > 0 {
+                self.current_pos.col_start = self.current_pos.col_end + 1;
+            }
         }
 
-        if self.current_pos.col_start != 1 {
+        if self.current_pos.col_start > 0 {
             self.current_pos.col_start -= 1; // offstet of the last loop
         }
         self.current_pos.col_end = self.current_pos.col_start;
@@ -143,8 +152,8 @@ impl<'a> Lexer<'a> {
 
         if ch.is_whitespace() {
             if ch == '\n' {
-                self.current_pos.line += 1;
-                self.current_pos.col_start = 1;
+                self.current_pos.line_end += 1;
+                self.current_pos.col_start = 0;
             } else {
                 self.current_pos.col_start = self.current_pos.col_end + 1;
             }
@@ -158,8 +167,8 @@ impl<'a> Lexer<'a> {
     fn skip_comment(&mut self) {
         while let Some(ch) = self.chars.next() {
             if ch == '\n' {
-                self.current_pos.line += 1;
-                self.current_pos.col_start = 1;
+                self.current_pos.line_end += 1;
+                self.current_pos.col_start = 0;
                 break;
             }
         }
@@ -172,8 +181,8 @@ impl<'a> Lexer<'a> {
             ch if is_alphabetic(ch) => self.create_keyword_or_identifer_token(),
             ch if ch.is_ascii_digit() => self.create_number_token(),
             _ => {
-                return Err(LexicalError::UnexpectedCharacter(
-                    self.current_lexeme.clone(),
+                return Err(LexicalError::new(
+                    LexicalErrorKind::UnexpectedCharacter(self.current_lexeme.clone()),
                     self.current_pos,
                 ))
             }
@@ -218,8 +227,8 @@ impl<'a> Lexer<'a> {
             "<" => TokenType::Less,
             "<=" => TokenType::LessEqual,
             _ => {
-                return Err(LexicalError::UnexpectedCharacter(
-                    self.current_lexeme.clone(),
+                return Err(LexicalError::new(
+                    LexicalErrorKind::UnexpectedCharacter(self.current_lexeme.clone()),
                     self.current_pos,
                 ))
             }
@@ -246,8 +255,8 @@ impl<'a> Lexer<'a> {
                         '\"' => "\"",
                         '\\' => "\\",
                         _ => {
-                            return Err(LexicalError::InvalidEscapeChar(
-                                current_escape_char,
+                            return Err(LexicalError::new(
+                                LexicalErrorKind::InvalidEscapeChar(current_escape_char),
                                 self.current_pos,
                             ))
                         }
@@ -271,7 +280,10 @@ impl<'a> Lexer<'a> {
         }
 
         if !closed {
-            return Err(LexicalError::TrailingQuote(quote_char, self.current_pos));
+            return Err(LexicalError::new(
+                LexicalErrorKind::TrailingQuote(quote_char),
+                self.current_pos,
+            ));
         }
 
         let value = self.current_lexeme[1..self.current_lexeme.len() - 1].to_string();
@@ -301,8 +313,8 @@ impl<'a> Lexer<'a> {
                 self.current_pos,
             ),
             Err(_) => {
-                return Err(LexicalError::InvalidFloat(
-                    self.current_lexeme.clone(),
+                return Err(LexicalError::new(
+                    LexicalErrorKind::InvalidFloat(self.current_lexeme.clone()),
                     self.current_pos,
                 ))
             }
@@ -364,24 +376,32 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::new(TokenType::Set, String::from("set"), Position::new(1, 1, 3)),
+                Token::new(
+                    TokenType::Set,
+                    String::from("set"),
+                    Position::new(0, 0, 0, 2)
+                ),
                 Token::new(
                     TokenType::Identifier(String::from("s")),
                     String::from("s"),
-                    Position::new(1, 5, 5)
+                    Position::new(0, 4, 0, 4)
                 ),
-                Token::new(TokenType::Equal, String::from("="), Position::new(1, 7, 7)),
+                Token::new(
+                    TokenType::Equal,
+                    String::from("="),
+                    Position::new(0, 6, 0, 6)
+                ),
                 Token::new(
                     TokenType::String(String::from("Hello World")),
                     String::from("'Hello World'"),
-                    Position::new(1, 9, 21)
+                    Position::new(0, 8, 0, 20)
                 ),
                 Token::new(
                     TokenType::Semicolon,
                     String::from(";"),
-                    Position::new(1, 22, 22)
+                    Position::new(0, 21, 0, 21)
                 ),
-                Token::new(TokenType::Eof, String::new(), Position::new(1, 22, 22))
+                Token::new(TokenType::Eof, String::new(), Position::new(0, 21, 0, 21))
             ]
         )
     }
@@ -400,59 +420,59 @@ mod tests {
                 Token::new(
                     TokenType::Function,
                     String::from("function"),
-                    Position::new(1, 1, 8)
+                    Position::new(0, 0, 0, 7)
                 ),
                 Token::new(
                     TokenType::Identifier(String::from("hello")),
                     String::from("hello"),
-                    Position::new(1, 10, 14)
+                    Position::new(0, 9, 0, 13)
                 ),
                 Token::new(
                     TokenType::LeftParenthesis,
                     String::from("("),
-                    Position::new(1, 15, 15)
+                    Position::new(0, 14, 0, 14)
                 ),
                 Token::new(
                     TokenType::RighParenethesis,
                     String::from(")"),
-                    Position::new(1, 16, 16)
+                    Position::new(0, 15, 0, 15)
                 ),
                 Token::new(
                     TokenType::LeftBrace,
                     String::from("{"),
-                    Position::new(1, 18, 18)
+                    Position::new(0, 17, 0, 17)
                 ),
                 Token::new(
                     TokenType::LineBreak,
                     String::from("\n"),
-                    Position::new(1, 19, 19)
+                    Position::new(0, 18, 0, 18)
                 ),
                 Token::new(
                     TokenType::Return,
                     String::from("return"),
-                    Position::new(2, 5, 10)
+                    Position::new(1, 4, 1, 9)
                 ),
                 Token::new(
                     TokenType::String(String::from("Hello World")),
                     String::from("\"Hello World\""),
-                    Position::new(2, 12, 24)
+                    Position::new(1, 11, 1, 23)
                 ),
                 Token::new(
                     TokenType::Semicolon,
                     String::from(";"),
-                    Position::new(2, 25, 25)
+                    Position::new(1, 24, 1, 24)
                 ),
                 Token::new(
                     TokenType::LineBreak,
                     String::from("\n"),
-                    Position::new(2, 26, 26)
+                    Position::new(1, 25, 1, 25)
                 ),
                 Token::new(
                     TokenType::RightBrace,
                     String::from("}"),
-                    Position::new(3, 1, 1)
+                    Position::new(2, 0, 2, 0)
                 ),
-                Token::new(TokenType::Eof, String::new(), Position::new(3, 1, 1)),
+                Token::new(TokenType::Eof, String::new(), Position::new(2, 0, 2, 0)),
             ]
         )
     }
@@ -470,38 +490,51 @@ idk
                 Token::new(
                     TokenType::Number(12.0),
                     String::from("12"),
-                    Position::new(1, 1, 2)
+                    Position::new(0, 0, 0, 1)
                 ),
-                Token::new(TokenType::Plus, String::from("+"), Position::new(1, 4, 4)),
+                Token::new(
+                    TokenType::Plus,
+                    String::from("+"),
+                    Position::new(0, 3, 0, 3)
+                ),
                 Token::new(
                     TokenType::LineBreak,
                     String::from("\n"),
-                    Position::new(1, 10, 10)
+                    Position::new(0, 9, 0, 9)
                 ),
                 Token::new(
                     TokenType::LineBreak,
                     String::from("\n"),
-                    Position::new(2, 14, 14)
+                    Position::new(1, 13, 1, 13)
                 ),
                 Token::new(
                     TokenType::Identifier(String::from("idk")),
                     String::from("idk"),
-                    Position::new(3, 1, 3)
+                    Position::new(2, 0, 2, 2)
                 ),
                 Token::new(
                     TokenType::LineBreak,
                     String::from("\n"),
-                    Position::new(3, 4, 4)
+                    Position::new(2, 3, 2, 3)
                 ),
-                Token::new(TokenType::Eof, String::new(), Position::new(4, 3, 3))
+                Token::new(TokenType::Eof, String::new(), Position::new(3, 2, 3, 2))
             ]
         );
         assert_eq!(
             errors,
             vec![
-                LexicalError::InvalidFloat(String::from("1..2"), Position::new(1, 6, 9)),
-                LexicalError::UnexpectedCharacter(String::from("^"), Position::new(2, 1, 1)),
-                LexicalError::TrailingQuote('\'', Position::new(4, 1, 3))
+                LexicalError::new(
+                    LexicalErrorKind::InvalidFloat(String::from("1..2")),
+                    Position::new(0, 5, 0, 8)
+                ),
+                LexicalError::new(
+                    LexicalErrorKind::UnexpectedCharacter(String::from("^")),
+                    Position::new(1, 0, 1, 0)
+                ),
+                LexicalError::new(
+                    LexicalErrorKind::TrailingQuote('\''),
+                    Position::new(3, 0, 3, 2)
+                )
             ]
         )
     }

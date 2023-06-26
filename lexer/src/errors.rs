@@ -1,14 +1,34 @@
+use std::fmt;
+
 use super::utils::Position;
 use thiserror::Error;
 
+#[derive(Debug, PartialEq)]
+pub struct LexicalError {
+    pub kind: LexicalErrorKind,
+    pub position: Position,
+}
+
+impl LexicalError {
+    pub fn new(kind: LexicalErrorKind, position: Position) -> Self {
+        Self { kind, position }
+    }
+}
+
+impl fmt::Display for LexicalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.kind, self.position)
+    }
+}
+
 #[derive(Error, Debug, PartialEq)]
-pub enum LexicalError {
-    #[error("unexpected character '{0}' ({1})")]
-    UnexpectedCharacter(String, Position),
-    #[error("trailing quote {0} ({1})")]
-    TrailingQuote(char, Position),
-    #[error("invalid escape character '{0}' ({1})")]
-    InvalidEscapeChar(String, Position),
-    #[error("invalid foating number '{0}' ({1})")]
-    InvalidFloat(String, Position),
+pub enum LexicalErrorKind {
+    #[error("unexpected character '{0}'")]
+    UnexpectedCharacter(String),
+    #[error("trailing quote {0}")]
+    TrailingQuote(char),
+    #[error("invalid escape character '{0}'")]
+    InvalidEscapeChar(String),
+    #[error("invalid foating number '{0}'")]
+    InvalidFloat(String),
 }

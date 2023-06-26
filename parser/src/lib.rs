@@ -1,8 +1,9 @@
 pub mod ast;
 pub mod error;
 
-use self::{ast::*, error::ParsingError};
+use self::{ast::*, error::ParsingErrorKind};
 
+use error::ParsingError;
 use lexer::tokens::{Token, TokenType};
 use std::{iter::Peekable, slice::Iter, vec};
 
@@ -63,6 +64,10 @@ impl<'a> Parser<'a> {
         self.current_token.clone()
     }
 
+    fn clone_lexeme(&self) -> String {
+        self.current_token.lexeme.clone()
+    }
+
     fn peek(&mut self) -> &Token {
         self.tokens.peek().unwrap()
     }
@@ -102,12 +107,20 @@ impl<'a> Parser<'a> {
         self.advance();
         let name = match &self.current_token.value {
             TokenType::Identifier(_) => self.clone_token(),
-            _ => return Err(ParsingError::ExpectedIdentifier(self.clone_token())),
+            _ => {
+                return Err(ParsingError::new(
+                    ParsingErrorKind::ExpectedIdentifier(self.clone_lexeme()),
+                    self.current_token.pos,
+                ))
+            }
         };
         self.advance();
 
         if self.current_token.value != TokenType::Equal {
-            return Err(ParsingError::MissingAssignment(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::MissingAssignment,
+                self.current_token.pos,
+            ));
         }
 
         self.advance();
@@ -140,7 +153,10 @@ impl<'a> Parser<'a> {
         let mut statements: Vec<Statement> = vec![];
         while self.current_token.value != TokenType::RightBrace {
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingClosingBrace(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingClosingBrace,
+                    self.current_token.pos,
+                ));
             }
 
             let statement = self.parse_statement()?;
@@ -160,7 +176,10 @@ impl<'a> Parser<'a> {
         let key = if self.current_token.value.is_identifier() {
             self.clone_token()
         } else {
-            return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedIdentifier(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         };
         self.advance();
 
@@ -168,14 +187,20 @@ impl<'a> Parser<'a> {
         if self.current_token.value == TokenType::Comma {
             self.advance();
             if !self.current_token.value.is_identifier() {
-                return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::ExpectedIdentifier(self.clone_lexeme()),
+                    self.current_token.pos,
+                ));
             }
             value = Some(self.clone_token());
             self.advance();
         }
 
         if self.current_token.value != TokenType::In {
-            return Err(ParsingError::ExpectedIn(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedIn(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
         self.advance();
 
@@ -198,7 +223,10 @@ impl<'a> Parser<'a> {
         let condition = self.parse_expression()?;
 
         if self.current_token.value != TokenType::LeftBrace {
-            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedLeftBrace(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         let block = Box::new(self.parse_block()?);
@@ -211,7 +239,10 @@ impl<'a> Parser<'a> {
         self.advance();
 
         if self.current_token.value != TokenType::LeftBrace {
-            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedLeftBrace(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         let block = Box::new(self.parse_block()?);
@@ -241,13 +272,19 @@ impl<'a> Parser<'a> {
         let token = Some(self.clone_token());
 
         if !self.current_token.value.is_identifier() {
-            return Err(ParsingError::ExpectedIdentifier(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedIdentifier(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         let parameter = self.get_function_param()?;
 
         if self.current_token.value != TokenType::LeftBrace {
-            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedLeftBrace(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         let body = Box::new(self.parse_block()?);
@@ -293,7 +330,10 @@ impl<'a> Parser<'a> {
                 return Ok(assignment);
             }
 
-            return Err(ParsingError::InvalidAssignment(token));
+            return Err(ParsingError::new(
+                ParsingErrorKind::InvalidAssignment,
+                self.current_token.pos,
+            ));
         }
 
         Ok(expression)
@@ -307,7 +347,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_or()?;
@@ -330,7 +373,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_and()?;
@@ -353,7 +399,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_eqality()?;
@@ -376,7 +425,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_comparaison()?;
@@ -399,7 +451,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_term()?;
@@ -422,7 +477,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_term()?;
@@ -445,7 +503,10 @@ impl<'a> Parser<'a> {
             self.advance();
 
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingRightOperand(operator));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingRightOperand(operator.lexeme),
+                    self.current_token.pos,
+                ));
             }
 
             let right = self.parse_factor()?;
@@ -475,7 +536,12 @@ impl<'a> Parser<'a> {
     fn parse_primary(&mut self) -> Result<Expression, ParsingError> {
         let token = self.clone_token();
         let mut expression = match token.value {
-            TokenType::Eof => return Err(ParsingError::UnexpedtedEndOfInput(token)),
+            TokenType::Eof => {
+                return Err(ParsingError::new(
+                    ParsingErrorKind::UnexpedtedEndOfInput,
+                    self.current_token.pos,
+                ))
+            }
             TokenType::If => self.parse_if()?,
             TokenType::Match => self.parse_match()?,
             TokenType::Lambda => self.parse_lambda()?,
@@ -485,7 +551,10 @@ impl<'a> Parser<'a> {
             TokenType::Identifier(_) => {
                 let next_token = self.peek();
                 if next_token.value.is_literal() || next_token.value.is_identifier() {
-                    return Err(ParsingError::UnexpectedToken(next_token.clone()));
+                    return Err(ParsingError::new(
+                        ParsingErrorKind::UnexpectedToken(self.clone_lexeme()),
+                        self.current_token.pos,
+                    ));
                 }
                 Expression::VariableExpression(Variable {
                     token: token.clone(),
@@ -495,15 +564,24 @@ impl<'a> Parser<'a> {
                 if self.current_token.value.is_literal() {
                     let next_token = self.peek();
                     if next_token.value.is_literal() || next_token.value.is_identifier() {
-                        return Err(ParsingError::UnexpectedToken(next_token.clone()));
+                        return Err(ParsingError::new(
+                            ParsingErrorKind::UnexpectedToken(self.clone_lexeme()),
+                            self.current_token.pos,
+                        ));
                     }
                     Expression::LiteralExpression(Literal {
                         token: token.clone(),
                     })
                 } else if self.current_token.value.is_binary_operator() {
-                    return Err(ParsingError::MissingLeftOperand(token));
+                    return Err(ParsingError::new(
+                        ParsingErrorKind::MissingLeftOperand(token.lexeme),
+                        self.current_token.pos,
+                    ));
                 } else {
-                    return Err(ParsingError::UnexpectedToken(token));
+                    return Err(ParsingError::new(
+                        ParsingErrorKind::UnexpectedToken(token.lexeme),
+                        self.current_token.pos,
+                    ));
                 }
             }
         };
@@ -533,7 +611,10 @@ impl<'a> Parser<'a> {
         let expression = self.parse_expression()?;
 
         if self.current_token.value != TokenType::RighParenethesis {
-            return Err(ParsingError::MissingParenthesis(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::MissingParenthesis,
+                self.current_token.pos,
+            ));
         }
 
         Ok(expression)
@@ -545,7 +626,10 @@ impl<'a> Parser<'a> {
 
         while self.current_token.value != TokenType::RightBracket {
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::UnexpedtedEndOfInput,
+                    self.current_token.pos,
+                ));
             }
 
             items.push(self.parse_expression()?);
@@ -554,7 +638,10 @@ impl<'a> Parser<'a> {
             if self.current_token.value != TokenType::RightBracket
                 && self.current_token.value != TokenType::Comma
             {
-                return Err(ParsingError::ExpectedComma(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::ExpectedComma(self.clone_lexeme()),
+                    self.current_token.pos,
+                ));
             }
 
             if self.current_token.value == TokenType::Comma {
@@ -572,11 +659,17 @@ impl<'a> Parser<'a> {
 
         while self.current_token.value != TokenType::RightBrace {
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::UnexpedtedEndOfInput,
+                    self.current_token.pos,
+                ));
             }
 
             if self.current_token.value.is_symbol() || self.current_token.lexeme.contains(".") {
-                return Err(ParsingError::InvalidProp(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::InvalidProp(self.clone_lexeme()),
+                    self.current_token.pos,
+                ));
             }
 
             let name = self.clone_token();
@@ -593,7 +686,10 @@ impl<'a> Parser<'a> {
                     })
                 }
                 _ => {
-                    return Err(ParsingError::ExpectedColon(self.clone_token()));
+                    return Err(ParsingError::new(
+                        ParsingErrorKind::ExpectedColon(self.clone_lexeme()),
+                        self.current_token.pos,
+                    ));
                 }
             };
 
@@ -603,7 +699,10 @@ impl<'a> Parser<'a> {
             if self.current_token.value != TokenType::RightBrace
                 && self.current_token.value != TokenType::Comma
             {
-                return Err(ParsingError::ExpectedComma(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::ExpectedComma(self.clone_lexeme()),
+                    self.current_token.pos,
+                ));
             }
 
             if self.current_token.value == TokenType::Comma {
@@ -621,7 +720,10 @@ impl<'a> Parser<'a> {
         let index = Box::new(self.parse_expression()?);
 
         if self.current_token.value != TokenType::RightBracket {
-            return Err(ParsingError::MissingClosingBracket(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::MissingClosingBracket,
+                self.current_token.pos,
+            ));
         }
 
         self.advance();
@@ -639,7 +741,10 @@ impl<'a> Parser<'a> {
         self.advance();
 
         if !self.current_token.value.is_identifier() && !self.current_token.value.is_keyword() {
-            return Err(ParsingError::InvalidProp(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::InvalidProp(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         let prop = self.clone_token();
@@ -664,7 +769,10 @@ impl<'a> Parser<'a> {
         let condition = Box::new(self.parse_expression()?);
 
         if self.current_token.value != TokenType::LeftBrace {
-            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedLeftBrace(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         let true_branch = Box::new(self.parse_block()?);
@@ -674,7 +782,10 @@ impl<'a> Parser<'a> {
                 TokenType::If => Some(Box::new(self.parse_statement()?)),
                 _ => {
                     if self.current_token.value != TokenType::LeftBrace {
-                        return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+                        return Err(ParsingError::new(
+                            ParsingErrorKind::ExpectedLeftBrace(self.clone_lexeme()),
+                            self.current_token.pos,
+                        ));
                     }
                     Some(Box::new(self.parse_block()?))
                 }
@@ -696,7 +807,10 @@ impl<'a> Parser<'a> {
         let pattern = Box::new(self.parse_expression()?);
 
         if self.current_token.value != TokenType::LeftBrace {
-            return Err(ParsingError::ExpectedLeftBrace(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedLeftBrace(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
 
         self.advance();
@@ -705,7 +819,10 @@ impl<'a> Parser<'a> {
 
         while self.current_token.value != TokenType::RightBrace {
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingClosingBrace(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingClosingBrace,
+                    self.current_token.pos,
+                ));
             }
 
             if self.current_token.lexeme == "_" {
@@ -715,7 +832,10 @@ impl<'a> Parser<'a> {
             }
 
             if self.current_token.value != TokenType::Comma {
-                return Err(ParsingError::MissingComma(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingComma,
+                    self.current_token.pos,
+                ));
             }
 
             self.advance();
@@ -736,7 +856,10 @@ impl<'a> Parser<'a> {
             let expr = match &self.current_token.value {
                 TokenType::Colon => break,
                 TokenType::Eof => {
-                    return Err(ParsingError::UnexpedtedEndOfInput(self.clone_token()))
+                    return Err(ParsingError::new(
+                        ParsingErrorKind::UnexpedtedEndOfInput,
+                        self.current_token.pos,
+                    ))
                 }
                 TokenType::Comma => {
                     self.advance();
@@ -744,7 +867,10 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     if self.current_token.lexeme == "_" && self.peek().value != TokenType::Colon {
-                        return Err(ParsingError::UnexpectedToken(self.peek().clone()));
+                        return Err(ParsingError::new(
+                            ParsingErrorKind::UnexpectedToken(self.peek().lexeme.clone()),
+                            self.current_token.pos,
+                        ));
                     }
 
                     Box::new(self.parse_expression()?)
@@ -755,7 +881,10 @@ impl<'a> Parser<'a> {
         }
 
         if pattern.is_empty() {
-            return Err(ParsingError::MissingArmExpression(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::MissingArmExpression,
+                self.current_token.pos,
+            ));
         }
 
         self.advance();
@@ -776,7 +905,10 @@ impl<'a> Parser<'a> {
 
         while self.current_token.value != TokenType::RighParenethesis {
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingParenthesis(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingParenthesis,
+                    self.current_token.pos,
+                ));
             }
 
             arguments.push(self.parse_expression()?);
@@ -814,7 +946,10 @@ impl<'a> Parser<'a> {
     fn get_function_param(&mut self) -> Result<Vec<Token>, ParsingError> {
         self.advance();
         if self.current_token.value != TokenType::LeftParenthesis {
-            return Err(ParsingError::ExpectedLeftParenthesis(self.clone_token()));
+            return Err(ParsingError::new(
+                ParsingErrorKind::ExpectedLeftParenthesis(self.clone_lexeme()),
+                self.current_token.pos,
+            ));
         }
         self.advance();
 
@@ -822,11 +957,17 @@ impl<'a> Parser<'a> {
 
         while self.current_token.value != TokenType::RighParenethesis {
             if self.current_token.value.is_eof() {
-                return Err(ParsingError::MissingParenthesis(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::MissingParenthesis,
+                    self.current_token.pos,
+                ));
             }
 
             if !self.current_token.value.is_identifier() {
-                return Err(ParsingError::ExpectedParameter(self.clone_token()));
+                return Err(ParsingError::new(
+                    ParsingErrorKind::ExpectedParameter(self.clone_lexeme()),
+                    self.current_token.pos,
+                ));
             }
 
             parameter.push(self.clone_token());

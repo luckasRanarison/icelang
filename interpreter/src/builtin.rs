@@ -1,4 +1,9 @@
-use crate::{environment::RefEnv, error::RuntimeError, value::Value, EvalExpr, Interpreter};
+use crate::{
+    environment::RefEnv,
+    error::{RuntimeError, RuntimeErrorKind},
+    value::Value,
+    EvalExpr, Interpreter,
+};
 
 use lexer::tokens::Token;
 use parser::ast::Expression;
@@ -83,7 +88,7 @@ fn length(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, 
         Value::String(string) => Ok(Value::Number(string.len() as f64)),
         Value::Array(array) => Ok(Value::Number(array.len() as f64)),
         Value::Object(object) => Ok(Value::Number(object.values.len() as f64)),
-        _ => Err(RuntimeError::InvalidArg(token.clone())),
+        _ => Err(RuntimeError::new(RuntimeErrorKind::InvalidArg, token.pos)),
     }
 }
 
@@ -93,10 +98,9 @@ fn sqrt(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, Ru
 
     match value {
         Value::Number(value) => Ok(Value::Number(value.sqrt())),
-        _ => Err(RuntimeError::ExpectedButGot(
-            "number".to_owned(),
-            value.get_type(),
-            token.clone(),
+        _ => Err(RuntimeError::new(
+            RuntimeErrorKind::TypeExpection("number".to_owned(), value.get_type()),
+            token.pos,
         )),
     }
 }
@@ -107,9 +111,12 @@ fn pow(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, Run
     let value = value.evaluate_expression(env)?;
     let exponent = exponent.evaluate_expression(env)?;
 
-    match (value, exponent) {
+    match (&value, exponent) {
         (Value::Number(value), Value::Number(exponent)) => Ok(Value::Number(value.powf(exponent))),
-        _ => Err(RuntimeError::MismatchedArg(token.clone())),
+        _ => Err(RuntimeError::new(
+            RuntimeErrorKind::TypeExpection("number".to_owned(), value.get_type()),
+            token.pos,
+        )),
     }
 }
 
@@ -119,10 +126,9 @@ fn floor(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, R
 
     match value {
         Value::Number(value) => Ok(Value::Number(value.floor())),
-        _ => Err(RuntimeError::ExpectedButGot(
-            "number".to_owned(),
-            value.get_type(),
-            token.clone(),
+        _ => Err(RuntimeError::new(
+            RuntimeErrorKind::TypeExpection("number".to_owned(), value.get_type()),
+            token.pos,
         )),
     }
 }
@@ -133,13 +139,10 @@ fn round(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, R
 
     match value {
         Value::Number(value) => Ok(Value::Number(value.round())),
-        _ => {
-            return Err(RuntimeError::ExpectedButGot(
-                "number".to_owned(),
-                value.get_type(),
-                token.clone(),
-            ))
-        }
+        _ => Err(RuntimeError::new(
+            RuntimeErrorKind::TypeExpection("number".to_owned(), value.get_type()),
+            token.pos,
+        )),
     }
 }
 
@@ -149,13 +152,10 @@ fn ceil(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, Ru
 
     match value {
         Value::Number(value) => Ok(Value::Number(value.ceil())),
-        _ => {
-            return Err(RuntimeError::ExpectedButGot(
-                "number".to_owned(),
-                value.get_type(),
-                token.clone(),
-            ))
-        }
+        _ => Err(RuntimeError::new(
+            RuntimeErrorKind::TypeExpection("number".to_owned(), value.get_type()),
+            token.pos,
+        )),
     }
 }
 
@@ -170,12 +170,14 @@ fn parse_number(
     match value {
         Value::String(value) => match value.parse::<f64>() {
             Ok(number) => Ok(Value::Number(number)),
-            Err(_) => Err(RuntimeError::InvalidNumber(token.clone())),
+            Err(_) => Err(RuntimeError::new(
+                RuntimeErrorKind::InvalidNumber,
+                token.pos,
+            )),
         },
-        _ => Err(RuntimeError::ExpectedButGot(
-            "string".to_owned(),
-            value.get_type(),
-            token.clone(),
+        _ => Err(RuntimeError::new(
+            RuntimeErrorKind::TypeExpection("string".to_owned(), value.get_type()),
+            token.pos,
         )),
     }
 }
@@ -210,15 +212,20 @@ fn import(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, 
 
             value
         }
-        _ => return Err(RuntimeError::InvalidPath(value, token.clone())),
+        _ => {
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::InvalidPath(value),
+                token.pos,
+            ))
+        }
     };
     let file_path = &env.borrow().get_path().join(file_path);
     let source = match read_to_string(&file_path) {
         Ok(value) => value,
         Err(_) => {
-            return Err(RuntimeError::ModuleNotFound(
-                format!("{:?}", file_path),
-                token.clone(),
+            return Err(RuntimeError::new(
+                RuntimeErrorKind::ModuleNotFound(format!("{:?}", file_path)),
+                token.pos,
             ))
         }
     };
@@ -231,9 +238,12 @@ fn import(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, 
     Ok(value)
 }
 
-fn export(env: &RefEnv, _: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn export(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
-    Err(RuntimeError::Export(value))
+    Err(RuntimeError::new(
+        RuntimeErrorKind::Export(value),
+        token.pos,
+    ))
 }

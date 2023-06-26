@@ -2,16 +2,18 @@ use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Position {
-    pub line: usize,
-    pub col_start: usize,
-    pub col_end: usize,
+    pub line_start: u32,
+    pub line_end: u32,
+    pub col_start: u32,
+    pub col_end: u32,
 }
 
 impl Position {
-    pub fn new(line: usize, col_start: usize, col_end: usize) -> Self {
+    pub fn new(line_start: u32, col_start: u32, line_end: u32, col_end: u32) -> Self {
         Self {
-            line,
+            line_start,
             col_start,
+            line_end,
             col_end,
         }
     }
@@ -19,13 +21,17 @@ impl Position {
 
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let col = if self.col_start == self.col_end {
-            self.col_start.to_string()
-        } else {
-            format!("{}-{}", self.col_start, self.col_end)
+        let col = match self.col_start == self.col_end {
+            true => (self.col_start + 1).to_string(),
+            false => format!("{}-{}", self.col_start, self.col_end),
         };
 
-        write!(f, "line {}, col {}", self.line, col)
+        let line = match self.line_start == self.line_end {
+            true => (self.line_start + 1).to_string(),
+            false => format!("{}-{}", self.line_start, self.line_end),
+        };
+
+        write!(f, "line {}, col {}", line, col)
     }
 }
 
