@@ -28,15 +28,11 @@ pub enum ParsingErrorKind {
     #[error("unexpected end of input")]
     UnexpedtedEndOfInput,
     #[error("missing closing parenthesis")]
-    MissingParenthesis,
+    MissingClosingParenthesis,
     #[error("missing left operand for '{0}'")]
     MissingLeftOperand(String),
     #[error("missing right operand for '{0}'")]
     MissingRightOperand(String),
-    #[error("missing variable initializer")]
-    MissingInitializer,
-    #[error("missing semicolon ';'")]
-    MissingSemicolon,
     #[error("missing assignment '='")]
     MissingAssignment,
     #[error("expected colon ':' but got '{0}'")]
@@ -59,8 +55,6 @@ pub enum ParsingErrorKind {
     ExpectedIn(String),
     #[error("missing match arm expression")]
     MissingArmExpression,
-    #[error("missing comma ','")]
-    MissingComma,
     #[error("invalid assignment target")]
     InvalidAssignment,
     #[error("invalid property name '{0}'")]

@@ -23,7 +23,7 @@ impl Validator for IceValidator {
         match nodes {
             Ok(_) => ValidationResult::Complete,
             Err(err) => match err.kind {
-                ParsingErrorKind::MissingParenthesis
+                ParsingErrorKind::MissingClosingParenthesis
                 | ParsingErrorKind::MissingClosingBrace
                 | ParsingErrorKind::ExpectedComma(_)
                 | ParsingErrorKind::UnexpedtedEndOfInput => ValidationResult::Incomplete,
