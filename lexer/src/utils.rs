@@ -51,3 +51,7 @@ pub fn is_alphabetic(ch: char) -> bool {
 pub fn is_alphanumeric(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_'
 }
+
+pub fn is_linebreak(ch: char) -> bool {
+    ch == '\n'
+}

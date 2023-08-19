@@ -22,6 +22,7 @@ impl<'a> Parser<'a> {
 
     pub fn parse(&mut self) -> Result<Vec<Statement>, ParsingError> {
         self.advance();
+
         let mut nodes: Vec<Statement> = Vec::new();
 
         while !self.current_token.value.is_eof() {
@@ -33,26 +34,6 @@ impl<'a> Parser<'a> {
         }
 
         Ok(nodes)
-    }
-
-    pub fn parse_with_err(&mut self) -> (Vec<Statement>, Vec<ParsingError>) {
-        self.advance();
-        let mut nodes: Vec<Statement> = Vec::new();
-        let mut errors: Vec<ParsingError> = Vec::new();
-
-        while !self.current_token.value.is_eof() {
-            match self.parse_statement() {
-                Ok(statement) => match &statement {
-                    Statement::FunctionDeclaration(_) => nodes.insert(0, statement),
-                    _ => nodes.push(statement),
-                },
-                Err(error) => {
-                    self.handle_error(error, &mut errors);
-                }
-            }
-        }
-
-        (nodes, errors)
     }
 
     fn clone_token(&self) -> Token {
@@ -1004,43 +985,6 @@ impl<'a> Parser<'a> {
 
         self.advance();
         Ok(parameter)
-    }
-
-    fn handle_error(&mut self, error: ParsingError, errors: &mut Vec<ParsingError>) {
-        match error.kind {
-            ParsingErrorKind::ExpectedColon(_) => self.advance_find(","),
-            ParsingErrorKind::ExpectedComma(_) => self.advance_find(","),
-            ParsingErrorKind::ExpectedLeftBrace(_) => self.advance_find("}"),
-            ParsingErrorKind::ExpectedLeftParenthesis(_) => self.advance_find(")"),
-            ParsingErrorKind::MissingClosingParenthesis => self.advance_find(")"),
-            ParsingErrorKind::MissingClosingBracket => self.advance_find("]"),
-            ParsingErrorKind::MissingClosingBrace => self.advance_find("}"),
-            _ => {
-                if !self.current_token.value.is_eof() {
-                    self.advance();
-                }
-            }
-        }
-
-        match error.kind {
-            ParsingErrorKind::UnexpectedToken(_) => match errors.last() {
-                Some(last_err) => match last_err.kind {
-                    ParsingErrorKind::UnexpectedToken(_) => {}
-                    _ => errors.push(error),
-                },
-                None => errors.push(error),
-            },
-            _ => errors.push(error),
-        }
-    }
-
-    fn advance_find(&mut self, lexeme: &str) {
-        while self.current_token.lexeme != lexeme.to_string() {
-            if self.current_token.value.is_eof() {
-                break;
-            }
-            self.advance();
-        }
     }
 }
 

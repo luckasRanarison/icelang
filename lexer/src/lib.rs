@@ -35,14 +35,6 @@ impl<'a> Lexer<'a> {
             self.current_pos.line_start = self.current_pos.line_end;
             self.current_pos.col_end = self.current_pos.col_start;
 
-            if ch == '\n' {
-                tokens.push(Token::new(
-                    TokenType::LineBreak,
-                    String::from("\n"),
-                    self.current_pos,
-                ));
-            }
-
             if self.is_skipable(ch) {
                 continue;
             }
@@ -51,76 +43,9 @@ impl<'a> Lexer<'a> {
 
             tokens.push(self.create_token(ch)?);
 
-            self.current_lexeme = String::new();
-            self.current_pos.col_start = self.current_pos.col_end + 1;
-        }
-
-        if self.current_pos.col_start > 0 {
-            self.current_pos.col_start -= 1; // offstet of the last loop
-        }
-        self.current_pos.col_end = self.current_pos.col_start;
-
-        tokens.push(Token::new(TokenType::Eof, String::new(), self.current_pos));
-
-        Ok(tokens)
-    }
-
-    pub fn tokenize_with_err(&mut self) -> (Vec<Token>, Vec<LexicalError>) {
-        let mut tokens: Vec<Token> = Vec::new();
-        let mut errors: Vec<LexicalError> = Vec::new();
-
-        while let Some(ch) = self.chars.next() {
             self.current_lexeme.clear();
-            self.current_pos.line_start = self.current_pos.line_end;
-            self.current_pos.col_end = self.current_pos.col_start;
 
-            if ch == '\n' {
-                tokens.push(Token::new(
-                    TokenType::LineBreak,
-                    String::from("\n"),
-                    self.current_pos,
-                ));
-            }
-
-            if self.is_skipable(ch) {
-                continue;
-            }
-
-            self.current_lexeme += &ch.to_string();
-
-            match self.create_token(ch) {
-                Ok(token) => tokens.push(token),
-                Err(error) => {
-                    while let Some(ch) = self.chars.next() {
-                        self.current_pos.col_end += 1;
-                        self.current_pos.col_start = self.current_pos.col_end;
-                        if ch == '\n' {
-                            match error.kind {
-                                LexicalErrorKind::TrailingQuote(..) => {
-                                    self.current_pos.line_end += 1;
-                                    self.current_pos.col_end = 0;
-                                    self.current_pos.col_start = 0;
-                                }
-                                _ => {
-                                    tokens.push(Token::new(
-                                        TokenType::LineBreak,
-                                        String::from("\n"),
-                                        self.current_pos,
-                                    ));
-                                    self.current_pos.line_end += 1;
-                                    self.current_pos.col_end = 0;
-                                    self.current_pos.col_start = 0;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    errors.push(error);
-                }
-            }
-
-            // skip if line break
-            if self.current_pos.col_end > 0 {
+            if !is_linebreak(ch) {
                 self.current_pos.col_start = self.current_pos.col_end + 1;
             }
         }
@@ -128,11 +53,14 @@ impl<'a> Lexer<'a> {
         if self.current_pos.col_start > 0 {
             self.current_pos.col_start -= 1; // offstet of the last loop
         }
+
         self.current_pos.col_end = self.current_pos.col_start;
 
-        tokens.push(Token::new(TokenType::Eof, String::new(), self.current_pos));
+        let eof_token = Token::new(TokenType::Eof, String::new(), self.current_pos);
 
-        (tokens, errors)
+        tokens.push(eof_token);
+
+        Ok(tokens)
     }
 
     fn advance(&mut self) {
@@ -150,14 +78,8 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        if ch.is_whitespace() {
-            if ch == '\n' {
-                self.current_pos.line_end += 1;
-                self.current_pos.col_start = 0;
-            } else {
-                self.current_pos.col_start = self.current_pos.col_end + 1;
-            }
-
+        if ch.is_whitespace() && !is_linebreak(ch) {
+            self.current_pos.col_start = self.current_pos.col_end + 1;
             return true;
         }
 
@@ -176,6 +98,7 @@ impl<'a> Lexer<'a> {
 
     fn create_token(&mut self, ch: char) -> Result<Token, LexicalError> {
         match ch {
+            ch if is_linebreak(ch) => self.create_linebreak(),
             ch if is_standard_symbol(ch) => self.create_symbol_token(),
             ch if is_quote(ch) => self.create_string_token(ch),
             ch if is_alphabetic(ch) => self.create_keyword_or_identifer_token(),
@@ -187,6 +110,15 @@ impl<'a> Lexer<'a> {
                 ))
             }
         }
+    }
+
+    fn create_linebreak(&mut self) -> Result<Token, LexicalError> {
+        let token = Token::new(TokenType::LineBreak, String::from("\n"), self.current_pos);
+
+        self.current_pos.line_end += 1;
+        self.current_pos.col_start = 0;
+
+        Ok(token)
     }
 
     fn create_symbol_token(&mut self) -> Result<Token, LexicalError> {
@@ -245,6 +177,7 @@ impl<'a> Lexer<'a> {
         while let Some(next_char) = self.chars.peek() {
             if *next_char == '\\' {
                 self.advance();
+
                 if let Some(next_next_char) = self.chars.peek() {
                     let current_escape_char: String = format!("\\{}", next_next_char);
                     let escape_char = match *next_next_char {
@@ -261,6 +194,7 @@ impl<'a> Lexer<'a> {
                             ))
                         }
                     };
+
                     self.current_lexeme += escape_char;
                     self.advance();
                 } else {
@@ -473,68 +407,6 @@ mod tests {
                     Position::new(2, 0, 2, 0)
                 ),
                 Token::new(TokenType::Eof, String::new(), Position::new(2, 0, 2, 0)),
-            ]
-        )
-    }
-
-    #[test]
-    fn test_tokenize_with_err() {
-        let s = "12 + 1..2
-^ unreachable
-idk
-'hi";
-        let (tokens, errors) = Lexer::new(s).tokenize_with_err();
-        assert_eq!(
-            tokens,
-            vec![
-                Token::new(
-                    TokenType::Number(12.0),
-                    String::from("12"),
-                    Position::new(0, 0, 0, 1)
-                ),
-                Token::new(
-                    TokenType::Plus,
-                    String::from("+"),
-                    Position::new(0, 3, 0, 3)
-                ),
-                Token::new(
-                    TokenType::LineBreak,
-                    String::from("\n"),
-                    Position::new(0, 9, 0, 9)
-                ),
-                Token::new(
-                    TokenType::LineBreak,
-                    String::from("\n"),
-                    Position::new(1, 13, 1, 13)
-                ),
-                Token::new(
-                    TokenType::Identifier(String::from("idk")),
-                    String::from("idk"),
-                    Position::new(2, 0, 2, 2)
-                ),
-                Token::new(
-                    TokenType::LineBreak,
-                    String::from("\n"),
-                    Position::new(2, 3, 2, 3)
-                ),
-                Token::new(TokenType::Eof, String::new(), Position::new(3, 2, 3, 2))
-            ]
-        );
-        assert_eq!(
-            errors,
-            vec![
-                LexicalError::new(
-                    LexicalErrorKind::InvalidFloat(String::from("1..2")),
-                    Position::new(0, 5, 0, 8)
-                ),
-                LexicalError::new(
-                    LexicalErrorKind::UnexpectedCharacter(String::from("^")),
-                    Position::new(1, 0, 1, 0)
-                ),
-                LexicalError::new(
-                    LexicalErrorKind::TrailingQuote('\''),
-                    Position::new(3, 0, 3, 2)
-                )
             ]
         )
     }
