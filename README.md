@@ -61,10 +61,10 @@ cargo test --workspace --lib
 
 Some add-ons not directly related to the project itself:
 
--   [x] WASM Playground
+- [x] WASM Playground, https://luckasranarison.github.io/icelang
 
--   [ ] Vscode semantic highlight extension
+- [x] Tree-sitter grammar, https://github.com/luckasRanarison/tree-sitter-icelang
 
--   [ ] Bytecode interpreter
+- [x] Language server and Vscode client, https://github.com/luckasRanarison/icelang-ls
 
--   [ ] Language server and Vscode client
+- [ ] Bytecode interpreter
