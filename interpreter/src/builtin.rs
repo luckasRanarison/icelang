@@ -9,7 +9,7 @@ use lexer::tokens::Token;
 use parser::ast::Expression;
 use std::{f64::INFINITY, fmt, fs::read_to_string, io};
 
-type BuiltinFn = fn(&RefEnv, token: &Token, &Vec<Expression>) -> Result<Value, RuntimeError>;
+type BuiltinFn = fn(&RefEnv, token: &Token, &[Expression]) -> Result<Value, RuntimeError>;
 
 #[derive(Clone)]
 pub struct Builtin {
@@ -72,7 +72,7 @@ pub fn get_io_builtins() -> Vec<Builtin> {
     ]
 }
 
-fn type_of(env: &RefEnv, _: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn type_of(env: &RefEnv, _: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let value = &args[0];
     let value = value.evaluate_expression(env)?;
     let value_type = Value::String(value.get_type());
@@ -80,7 +80,7 @@ fn type_of(env: &RefEnv, _: &Token, args: &Vec<Expression>) -> Result<Value, Run
     Ok(value_type)
 }
 
-fn length(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn length(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
@@ -92,7 +92,7 @@ fn length(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, 
     }
 }
 
-fn sqrt(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn sqrt(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
@@ -105,7 +105,7 @@ fn sqrt(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, Ru
     }
 }
 
-fn pow(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn pow(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let value = &args[0];
     let exponent = &args[1];
     let value = value.evaluate_expression(env)?;
@@ -120,7 +120,7 @@ fn pow(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, Run
     }
 }
 
-fn floor(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn floor(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
@@ -133,7 +133,7 @@ fn floor(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, R
     }
 }
 
-fn round(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn round(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
@@ -146,7 +146,7 @@ fn round(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, R
     }
 }
 
-fn ceil(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn ceil(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
@@ -159,11 +159,7 @@ fn ceil(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, Ru
     }
 }
 
-fn parse_number(
-    env: &RefEnv,
-    token: &Token,
-    args: &Vec<Expression>,
-) -> Result<Value, RuntimeError> {
+fn parse_number(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 
@@ -182,17 +178,17 @@ fn parse_number(
     }
 }
 
-fn io_print(env: &RefEnv, _: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn io_print(env: &RefEnv, _: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     for arg in args {
         let value = arg.evaluate_expression(env)?;
         print!("{value}");
     }
 
-    println!("");
+    println!();
     Ok(Value::Null)
 }
 
-fn io_readline(_: &RefEnv, _: &Token, _: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn io_readline(_: &RefEnv, _: &Token, _: &[Expression]) -> Result<Value, RuntimeError> {
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
@@ -201,7 +197,7 @@ fn io_readline(_: &RefEnv, _: &Token, _: &Vec<Expression>) -> Result<Value, Runt
     Ok(Value::String(input.trim_end().to_string()))
 }
 
-fn import(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn import(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let mut value = arg.evaluate_expression(env)?;
     let file_path = match &mut value {
@@ -220,7 +216,7 @@ fn import(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, 
         }
     };
     let file_path = &env.borrow().get_path().join(file_path);
-    let source = match read_to_string(&file_path) {
+    let source = match read_to_string(file_path) {
         Ok(value) => value,
         Err(_) => {
             return Err(RuntimeError::new(
@@ -238,7 +234,7 @@ fn import(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, 
     Ok(value)
 }
 
-fn export(env: &RefEnv, token: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn export(env: &RefEnv, token: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     let arg = &args[0];
     let value = arg.evaluate_expression(env)?;
 

@@ -83,11 +83,11 @@ impl<'a> Lexer<'a> {
             return true;
         }
 
-        return false;
+        false
     }
 
     fn skip_comment(&mut self) {
-        while let Some(ch) = self.chars.next() {
+        for ch in self.chars.by_ref() {
             if ch == '\n' {
                 self.current_pos.line_end += 1;
                 self.current_pos.col_start = 0;
@@ -103,12 +103,10 @@ impl<'a> Lexer<'a> {
             ch if is_quote(ch) => self.create_string_token(ch),
             ch if is_alphabetic(ch) => self.create_keyword_or_identifer_token(),
             ch if ch.is_ascii_digit() => self.create_number_token(),
-            _ => {
-                return Err(LexicalError::new(
-                    LexicalErrorKind::UnexpectedCharacter(self.current_lexeme.clone()),
-                    self.current_pos,
-                ))
-            }
+            _ => Err(LexicalError::new(
+                LexicalErrorKind::UnexpectedCharacter(self.current_lexeme.clone()),
+                self.current_pos,
+            )),
         }
     }
 

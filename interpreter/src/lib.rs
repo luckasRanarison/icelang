@@ -33,7 +33,7 @@ impl Interpreter {
     }
 
     pub fn interpret<T: Eval>(&self, node: T) -> Result<Option<Value>, RuntimeError> {
-        Ok(node.evaluate(&self.environment)?)
+        node.evaluate(&self.environment)
     }
 
     pub fn run_source(&self, source: &str) -> Result<Value, RuntimeError> {
@@ -75,9 +75,9 @@ fn is_truthy(value: &Value) -> bool {
         Value::Number(value) => *value != 0.0,
         Value::Boolean(value) => *value,
         Value::Null => false,
-        Value::String(value) => value.len() != 0,
+        Value::String(value) => !value.is_empty(),
         Value::Array(value) => !value.is_empty(),
-        Value::Object(value) => value.values.len() != 0,
+        Value::Object(value) => !value.values.is_empty(),
         _ => true,
     }
 }
@@ -92,10 +92,10 @@ fn get_numerical_index(expr: &Index, value: Value) -> Result<usize, RuntimeError
         }
         Ok(index as usize)
     } else {
-        return Err(RuntimeError::new(
+        Err(RuntimeError::new(
             RuntimeErrorKind::InvalidIndex,
             expr.token.pos,
-        ));
+        ))
     }
 }
 
@@ -152,7 +152,7 @@ impl Eval for Declaration {
         }
 
         let value = self.value.evaluate_expression(env)?;
-        env.borrow_mut().set(&name, value);
+        env.borrow_mut().set(name, value);
 
         Ok(None)
     }
@@ -278,7 +278,7 @@ impl Eval for FunctionDeclaration {
         let token = &self.token.as_ref().unwrap();
         let name = &token.lexeme;
 
-        if env.borrow().contains(&name) {
+        if env.borrow().contains(name) {
             return Err(RuntimeError::new(
                 RuntimeErrorKind::RedeclaringIdentifier(name.clone()),
                 token.pos,
@@ -286,7 +286,7 @@ impl Eval for FunctionDeclaration {
         }
 
         env.borrow_mut().set(
-            &name,
+            name,
             Value::Function(Function {
                 declaration: self.clone(),
             }),
@@ -469,7 +469,7 @@ impl EvalExpr for Index {
 
             Ok(value)
         } else {
-            let index = get_numerical_index(&self, index_expression)?;
+            let index = get_numerical_index(self, index_expression)?;
             let value = match expression {
                 Value::Array(array) => {
                     if let Some(value) = array.get(index) {
@@ -513,7 +513,7 @@ impl EvalRef for Index {
 
         match expression {
             Value::Array(array) => {
-                let index = get_numerical_index(&self, index_expression)?;
+                let index = get_numerical_index(self, index_expression)?;
                 if index >= array.len() {
                     array.resize_with(index + 1, || Rc::new(RefCell::new(Value::Null)))
                 }
@@ -769,7 +769,7 @@ impl EvalExpr for Match {
 
         if let Some(defalut) = &self.default {
             match defalut.block.evaluate(env)? {
-                Some(value) => return Ok(value.clone()),
+                Some(value) => return Ok(value),
                 None => return Ok(Value::Null),
             }
         }

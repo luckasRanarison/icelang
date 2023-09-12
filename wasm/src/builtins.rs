@@ -12,7 +12,7 @@ pub fn get_io_builtins() -> Vec<Builtin> {
     vec![Builtin::new("print", INFINITY as usize, io_print)]
 }
 
-fn io_print(env: &RefEnv, _: &Token, args: &Vec<Expression>) -> Result<Value, RuntimeError> {
+fn io_print(env: &RefEnv, _: &Token, args: &[Expression]) -> Result<Value, RuntimeError> {
     for arg in args {
         let value = arg.evaluate_expression(env)?;
         print_to_output(&value.to_string())

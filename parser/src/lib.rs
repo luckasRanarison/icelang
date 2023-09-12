@@ -13,7 +13,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a Vec<Token>) -> Self {
+    pub fn new(tokens: &'a [Token]) -> Self {
         Self {
             tokens: tokens.iter().peekable(),
             current_token: tokens.first().unwrap(), // assuming existing EOF
@@ -299,7 +299,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParsingError> {
-        Ok(self.parse_assignment()?)
+        self.parse_assignment()
     }
 
     fn parse_assignment(&mut self) -> Result<Expression, ParsingError> {
@@ -658,7 +658,7 @@ impl<'a> Parser<'a> {
                 ));
             }
 
-            if self.current_token.value.is_symbol() || self.current_token.lexeme.contains(".") {
+            if self.current_token.value.is_symbol() || self.current_token.lexeme.contains('.') {
                 return Err(ParsingError::new(
                     ParsingErrorKind::InvalidProp(self.clone_lexeme()),
                     self.current_token.pos,
@@ -912,12 +912,7 @@ impl<'a> Parser<'a> {
         }
         self.advance();
 
-        let object = if let Some(object) = object {
-            Some(Box::new(object))
-        } else {
-            None
-        };
-
+        let object = object.map(Box::new);
         let call = Expression::FunctionCall(Call {
             token,
             caller: Box::new(expression),

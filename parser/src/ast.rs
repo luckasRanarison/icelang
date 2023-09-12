@@ -257,7 +257,7 @@ impl fmt::Display for Lambda {
         let mut s = String::new();
         let mut iter = self.parameter.iter();
         if let Some(param) = iter.next() {
-            s.push_str(&format!("{}", param.lexeme));
+            s.push_str(&param.lexeme.to_string());
             for param in iter {
                 s.push_str(&format!(", {}", param.lexeme));
             }
@@ -400,7 +400,7 @@ impl fmt::Display for FunctionDeclaration {
         let mut s = String::new();
         let mut iter = self.parameter.iter();
         if let Some(param) = iter.next() {
-            s.push_str(&format!("{}", param.lexeme));
+            s.push_str(&param.lexeme.to_string());
             for param in iter {
                 s.push_str(&format!(", {}", param.lexeme));
             }

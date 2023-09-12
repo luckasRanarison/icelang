@@ -112,60 +112,57 @@ impl TokenType {
     }
 
     pub fn is_assignment(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TokenType::Equal
-            | TokenType::PlusEqual
-            | TokenType::MinusEqaul
-            | TokenType::AsterixEqual
-            | TokenType::SlashEqual
-            | TokenType::ModuloEqual => true,
-            _ => false,
-        }
+                | TokenType::PlusEqual
+                | TokenType::MinusEqaul
+                | TokenType::AsterixEqual
+                | TokenType::SlashEqual
+                | TokenType::ModuloEqual
+        )
     }
 
     pub fn is_comparaison(&self) -> bool {
-        match self {
-            TokenType::Greater
-            | TokenType::GreaterEqual
-            | TokenType::Less
-            | TokenType::LessEqual => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            TokenType::Greater | TokenType::GreaterEqual | TokenType::Less | TokenType::LessEqual,
+        )
     }
 
     pub fn is_literal(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TokenType::String(_)
-            | TokenType::Number(_)
-            | TokenType::True
-            | TokenType::False
-            | TokenType::Null => true,
-            _ => false,
-        }
+                | TokenType::Number(_)
+                | TokenType::True
+                | TokenType::False
+                | TokenType::Null
+        )
     }
 
     pub fn is_keyword(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TokenType::Set
-            | TokenType::Null
-            | TokenType::True
-            | TokenType::False
-            | TokenType::And
-            | TokenType::Or
-            | TokenType::If
-            | TokenType::Else
-            | TokenType::For
-            | TokenType::To
-            | TokenType::While
-            | TokenType::Loop
-            | TokenType::Foreach
-            | TokenType::In
-            | TokenType::Break
-            | TokenType::Continue
-            | TokenType::Function
-            | TokenType::Return => true,
-            _ => false,
-        }
+                | TokenType::Null
+                | TokenType::True
+                | TokenType::False
+                | TokenType::And
+                | TokenType::Or
+                | TokenType::If
+                | TokenType::Else
+                | TokenType::For
+                | TokenType::To
+                | TokenType::While
+                | TokenType::Loop
+                | TokenType::Foreach
+                | TokenType::In
+                | TokenType::Break
+                | TokenType::Continue
+                | TokenType::Function
+                | TokenType::Return
+        )
     }
 
     pub fn is_symbol(&self) -> bool {

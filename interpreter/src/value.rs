@@ -103,21 +103,18 @@ impl Value {
     }
 
     pub fn is_number(&self) -> bool {
-        match self {
-            Value::Number(_) => true,
-            _ => false,
-        }
+        matches!(self, Value::Number(_))
     }
 
     pub fn is_iterable(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Value::String(_)
-            | Value::Array(_)
-            | Value::Object(_)
-            | Value::Range(_)
-            | Value::Number(_) => true,
-            _ => false,
-        }
+                | Value::Array(_)
+                | Value::Object(_)
+                | Value::Range(_)
+                | Value::Number(_)
+        )
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = (Value, Value)> + '_> {
@@ -132,12 +129,12 @@ impl Value {
             }
             Value::Range(range) => match range {
                 Range::NumberRange(value) => {
-                    Box::new(value.clone().into_iter().enumerate().map(|(key, value)| {
+                    Box::new(value.clone().enumerate().map(|(key, value)| {
                         (Value::Number(key as f64), Value::Number(value as f64))
                     }))
                 }
                 Range::CharRange(value) => {
-                    Box::new(value.clone().into_iter().enumerate().map(|(key, value)| {
+                    Box::new(value.clone().enumerate().map(|(key, value)| {
                         (Value::Number(key as f64), Value::String(value.into()))
                     }))
                 }

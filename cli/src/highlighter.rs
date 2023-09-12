@@ -15,13 +15,13 @@ pub struct IceHighlighter {
 impl IceHighlighter {
     pub fn new() -> Self {
         Self {
-            identifier: Style::new().fg(Color::White),
-            keyword: Style::new().fg(Color::LightBlue),
-            method: Style::new().fg(Color::Cyan),
-            symbol: Style::new().fg(Color::LightCyan),
-            number: Style::new().fg(Color::LightRed),
-            string: Style::new().fg(Color::LightGreen),
-            comment: Style::new().fg(Color::DarkGray),
+            identifier: Style::from(Color::White),
+            keyword: Style::from(Color::LightBlue),
+            method: Style::from(Color::Cyan),
+            symbol: Style::from(Color::LightCyan),
+            number: Style::from(Color::LightRed),
+            string: Style::from(Color::LightGreen),
+            comment: Style::from(Color::DarkGray),
         }
     }
 }
@@ -40,7 +40,7 @@ impl Highlighter for IceHighlighter {
                         if *next == '-' {
                             buffer.last_mut().unwrap().0 = self.comment;
 
-                            while let Some(next) = tokens.next() {
+                            for next in tokens.by_ref() {
                                 buffer.push((self.comment, next.to_string()));
                             }
                         }
@@ -52,7 +52,7 @@ impl Highlighter for IceHighlighter {
                 let quote = char;
                 buffer.push((self.string, char.to_string()));
 
-                while let Some(char) = tokens.next() {
+                for char in tokens.by_ref() {
                     buffer.push((self.string, char.to_string()));
 
                     if char == quote {
@@ -71,12 +71,29 @@ impl Highlighter for IceHighlighter {
                     }
                 }
 
-                let is_keyword = match current.as_str() {
-                    "set" | "true" | "false" | "null" | "and" | "or" | "if" | "else" | "match"
-                    | "for" | "to" | "while" | "loop" | "in" | "break" | "continue"
-                    | "function" | "lambda" | "return" | "self" => true,
-                    _ => false,
-                };
+                let is_keyword = matches!(
+                    current.as_str(),
+                    "set"
+                        | "true"
+                        | "false"
+                        | "null"
+                        | "and"
+                        | "or"
+                        | "if"
+                        | "else"
+                        | "match"
+                        | "for"
+                        | "to"
+                        | "while"
+                        | "loop"
+                        | "in"
+                        | "break"
+                        | "continue"
+                        | "function"
+                        | "lambda"
+                        | "return"
+                        | "self"
+                );
 
                 let style = match is_keyword {
                     true => self.keyword,
